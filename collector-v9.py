@@ -4,6 +4,9 @@
 Netflow V9 collector implementation in Python 3.
 Created for learning purposes and unsatisfying alternatives.
 
+This script is specifically implemented in combination with softflowd.
+See https://github.com/djmdjm/softflowd
+
 (C) 2016 Dominik Pataky <dom@netdecorator.org>
 """
 
@@ -104,40 +107,90 @@ field_types = {
 
 # We need to save the templates our NetFlow device send over time. Templates
 # are not resended every time a flow is sent to the collector.
-templates = []
+_templates = {}
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((HOST, PORT))
 print("Listening on interface {}:{}".format(HOST, PORT))
 
+
 class DataRecord:
-    """Should hold a 'data' dict with keys=field_type and value.
+    """Should hold a 'data' dict with keys=field_type and value (in bytes).
     """
     data = {}
+
 
 class DataFlowSet:
     """
     """
-    def __init__(self, data):
+    def __init__(self, data, templates):
         pack = struct.unpack('!HH', data[:4])
 
         self.template_id = pack[0]  # flowset_id is reference to template_id
         self.length = pack[1]
+        self.flows = []
 
-        print("New DataFlowSet with template {}, length {}".format(self.template_id, self.length))
+        offset = 4
+        template = templates[self.template_id]
+        padding_size = 4 - (self.length % 4)
+
+        while offset <= (self.length - padding_size):
+            new_record = DataRecord()
+
+            for field in template.fields:
+                flen = field.field_length
+                fkey = field_types[field.field_type]
+                fdata = None
+
+                dataslice = data[offset:offset+flen]
+
+                if flen == 1:
+                    fdata = struct.unpack('!B', dataslice)
+                elif flen == 2:
+                    fdata = struct.unpack('!H', dataslice)
+                elif flen == 4:
+                    fdata = struct.unpack('!I', dataslice)
+                elif flen == 8:
+                    fdata = struct.unpack('!Q', dataslice)
+                elif flen == 16:
+                    # IPv6 address
+                    fdata = int.from_bytes(dataslice, byteorder='big')
+                else:
+                    raise ValueError("Length of field was not 1/2/4/8/16")
+
+                new_record.data[fkey] = fdata
+                offset += flen
+
+            self.flows.append(new_record)
+
 
 class TemplateField:
-    """
+    """A field with type identifier and length.
     """
     def __init__(self, field_type, field_length):
         self.field_type = field_type  # integer
-        self.field_length = field_length
+        self.field_length = field_length  # bytes
+
+    def __repr__(self):
+        return "<TemplateField type {}:{}, length {}>".format(
+            self.field_type, field_types[self.field_type], self.field_length
+        )
+
 
 class Template:
+    """A template record contained in a TemplateFlowSet.
     """
-    Template = namedtuple('Template', 'template_id field_count')
-    """
-    pass
+    def __init__(self, template_id, field_count, fields):
+        self.template_id = template_id
+        self.field_count = field_count
+        self.fields = fields
+
+    def __repr__(self):
+        return "<Template {} with {} fields: {}>".format(
+            self.template_id, self.field_count,
+            ' '.join([field_types[field.field_type] for field in self.fields])
+        )
+
 
 class TemplateFlowSet:
     """A template flowset, which holds an id that is used by data flowsets to
@@ -149,28 +202,42 @@ class TemplateFlowSet:
         pack = struct.unpack('!HH', data[:4])
         self.flowset_id = pack[0]
         self.length = pack[1]  # total length including this header in bytes
+        self.templates = {}
 
-        offset = 4
-        field_size = 16 + 16
+        offset = 4  # Skip header
+
+        # Iterate through all template records in this template flowset
         while offset != self.length:
             pack = struct.unpack('!HH', data[offset:offset+4])
             template_id = pack[0]
             field_count = pack[1]
 
-            # Set offset to next template_id field
-            offset += 4 + (field_count * 4)
+            fields = []
+            for field in range(field_count):
+                # Get all fields of this template
+                offset += 4
+                field_type, field_length = struct.unpack('!HH', data[offset:offset+4])
+                field = TemplateField(field_type, field_length)
+                fields.append(field)
 
-            print("id: {}, count: {}, new offset: {}".format(template_id, field_count, offset))
+            # Create a tempalte object with all collected data
+            template = Template(template_id, field_count, fields)
+
+            # Append the new template to the global templates list
+            self.templates[template.template_id] = template
+
+            # Set offset to next template_id field
+            offset += 4
 
 
 class Header:
     """The header of the flow record.
     """
     def __init__(self, data):
-        pack = struct.unpack('!HHIIII', data)
+        pack = struct.unpack('!HHIIII', data[:20])
 
         self.version = pack[0]
-        self.count = pack[1]  # number of FlowSets in this record
+        self.count = pack[1]  # not sure if correct. softflowd: no of flows
         self.uptime = pack[2]
         self.timestamp = pack[3]
         self.sequence = pack[4]
@@ -181,30 +248,24 @@ class ExportPacket:
     """The flow record holds the header and all template and data flowsets.
     """
     def __init__(self, data):
-        self.header = Header(data[:20])
+        self.header = Header(data)
+        self.templates = {}
+        self.flows = []
 
-        flowsets_remaining = self.header.count
-        self.templates = []
-        self.data = []
-
-        search_offset = 20
-        while flowsets_remaining != 0:
-            print("data flowsets remaining: {}".format(flowsets_remaining))
-
-            flowset_id = struct.unpack('!H', data[search_offset:search_offset+2])[0]
+        offset = 20
+        while offset != len(data):
+            flowset_id = struct.unpack('!H', data[offset:offset+2])[0]
             if flowset_id == 0:  # TemplateFlowSet always have id 0
-                tfs = TemplateFlowSet(data[search_offset:])
-                search_offset += tfs.length
+                tfs = TemplateFlowSet(data[offset:])
+                _templates.update(tfs.templates)
+                offset += tfs.length
             else:
-                dfs = DataFlowSet(data[search_offset:])
-                search_offset += dfs.length
-
-                # Bug in softflowd?
-                # https://github.com/djmdjm/softflowd/blob/master/netflow9.c#L477
-                flowsets_remaining -= 1
+                dfs = DataFlowSet(data[offset:], _templates)
+                self.flows += dfs.flows
+                offset += dfs.length
 
     def __repr__(self):
-        return "<ExportPacket version {} counting {} flowset records>".format(
+        return "<ExportPacket version {} counting {} records>".format(
             self.header.version, self.header.count)
 
 while 1:
@@ -213,3 +274,5 @@ while 1:
 
     export = ExportPacket(data)
     print(export)
+    for r in export.flows:
+        print(r.data)
