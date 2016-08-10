@@ -11,7 +11,6 @@ See https://github.com/djmdjm/softflowd
 Licensed under MIT License. See LICENSE.
 """
 
-from collections import namedtuple
 import socket
 import struct
 
@@ -160,6 +159,10 @@ class DataFlowSet:
 
             self.flows.append(new_record)
 
+    def __repr__(self):
+        return "<DataFlowSet with template {} of length {} holding {} flows>"\
+            .format(self.template_id, self.length, len(self.flows))
+
 
 class TemplateField:
     """A field with type identifier and length.
@@ -170,8 +173,7 @@ class TemplateField:
 
     def __repr__(self):
         return "<TemplateField type {}:{}, length {}>".format(
-            self.field_type, field_types[self.field_type], self.field_length
-        )
+            self.field_type, field_types[self.field_type], self.field_length)
 
 
 class TemplateRecord:
@@ -185,15 +187,14 @@ class TemplateRecord:
     def __repr__(self):
         return "<TemplateRecord {} with {} fields: {}>".format(
             self.template_id, self.field_count,
-            ' '.join([field_types[field.field_type] for field in self.fields])
-        )
+            ' '.join([field_types[field.field_type] for field in self.fields]))
 
 
 class TemplateFlowSet:
     """A template flowset, which holds an id that is used by data flowsets to
     reference back to the template. The template then has fields which hold
-    identifiers of data types ("IP_SRC_ADDR", "PKTS"). This way the flow sender
-    can dynamically out together data flowsets.
+    identifiers of data types (eg "IP_SRC_ADDR", "PKTS"..). This way the flow
+    sender can dynamically put together data flowsets.
     """
     def __init__(self, data):
         pack = struct.unpack('!HH', data[:4])
@@ -226,9 +227,13 @@ class TemplateFlowSet:
             # Set offset to next template_id field
             offset += 4
 
+    def __repr__(self):
+        return "<TemplateFlowSet with id {} of length {} containing templates: {}>"\
+            .format(self.flowset_id, self.length, self.templates.keys())
+
 
 class Header:
-    """The header of the flow record.
+    """The header of the ExportPacket.
     """
     def __init__(self, data):
         pack = struct.unpack('!HHIIII', data[:20])
@@ -275,7 +280,6 @@ if __name__ == "__main__":
     sock.bind((HOST, PORT))
     print("Listening on interface {}:{}".format(HOST, PORT))
 
-    counter = 0
     while 1:
         (data, sender) = sock.recvfrom(8192)
         print("Received data from {}, length {}".format(sender, len(data)))
