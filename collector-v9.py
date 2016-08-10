@@ -14,18 +14,6 @@ import struct
 HOST = '0.0.0.0'
 PORT = 9001
 
-# The header of the whole export packet
-#Header = namedtuple('Header', 'version count uptime timestamp sequence id')
-
-# A template flowset, which holds an id that is used by data flowsets to
-# reference back to the template. The template then has fields which hold
-# identifiers of data types ("IP_SRC_ADDR", "PKTS"). This way the flow sender
-# can dynamically out together data flowsets.
-TemplateFlowset = namedtuple('TemplateFlowset', 'flowset_id length')
-
-Template = namedtuple('Template', 'template_id field_count')
-TemplateField = namedtuple('TemplateField', 'type length')
-
 field_types = {
     1: 'IN_BYTES',
     2: 'IN_PKTS',
@@ -114,45 +102,114 @@ field_types = {
     89: 'FORWARDING STATUS',
 }
 
+# We need to save the templates our NetFlow device send over time. Templates
+# are not resended every time a flow is sent to the collector.
+templates = []
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((HOST, PORT))
 print("Listening on interface {}:{}".format(HOST, PORT))
 
+class DataRecord:
+    """Should hold a 'data' dict with keys=field_type and value.
+    """
+    data = {}
+
+class DataFlowSet:
+    """
+    """
+    def __init__(self, data):
+        pack = struct.unpack('!HH', data[:4])
+
+        self.template_id = pack[0]  # flowset_id is reference to template_id
+        self.length = pack[1]
+
+        print("New DataFlowSet with template {}, length {}".format(self.template_id, self.length))
+
 class TemplateField:
-    pass
+    """
+    """
+    def __init__(self, field_type, field_length):
+        self.field_type = field_type  # integer
+        self.field_length = field_length
 
 class Template:
+    """
+    Template = namedtuple('Template', 'template_id field_count')
+    """
     pass
 
 class TemplateFlowSet:
-    pass
+    """A template flowset, which holds an id that is used by data flowsets to
+    reference back to the template. The template then has fields which hold
+    identifiers of data types ("IP_SRC_ADDR", "PKTS"). This way the flow sender
+    can dynamically out together data flowsets.
+    """
+    def __init__(self, data):
+        pack = struct.unpack('!HH', data[:4])
+        self.flowset_id = pack[0]
+        self.length = pack[1]  # total length including this header in bytes
+
+        offset = 4
+        field_size = 16 + 16
+        while offset != self.length:
+            pack = struct.unpack('!HH', data[offset:offset+4])
+            template_id = pack[0]
+            field_count = pack[1]
+
+            # Set offset to next template_id field
+            offset += 4 + (field_count * 4)
+
+            print("id: {}, count: {}, new offset: {}".format(template_id, field_count, offset))
+
 
 class Header:
     """The header of the flow record.
     """
     def __init__(self, data):
-        self.version, self.count = struct.unpack('!HH', data[0:4])
-        (self.uptime, self.timestamp, self.sequence,
-            self.source_id) = struct.unpack('!IIII', data[4:])
+        pack = struct.unpack('!HHIIII', data)
+
+        self.version = pack[0]
+        self.count = pack[1]  # number of FlowSets in this record
+        self.uptime = pack[2]
+        self.timestamp = pack[3]
+        self.sequence = pack[4]
+        self.source_id = pack[5]
 
 
-class FlowRecord:
+class ExportPacket:
     """The flow record holds the header and all template and data flowsets.
     """
     def __init__(self, data):
         self.header = Header(data[:20])
 
+        flowsets_remaining = self.header.count
+        self.templates = []
+        self.data = []
+
+        search_offset = 20
+        while flowsets_remaining != 0:
+            print("data flowsets remaining: {}".format(flowsets_remaining))
+
+            flowset_id = struct.unpack('!H', data[search_offset:search_offset+2])[0]
+            if flowset_id == 0:  # TemplateFlowSet always have id 0
+                tfs = TemplateFlowSet(data[search_offset:])
+                search_offset += tfs.length
+            else:
+                dfs = DataFlowSet(data[search_offset:])
+                search_offset += dfs.length
+
+                # Bug in softflowd?
+                # https://github.com/djmdjm/softflowd/blob/master/netflow9.c#L477
+                flowsets_remaining -= 1
+
     def __repr__(self):
-        return "<FlowRecord version {} counting {} flowset records>".format(
+        return "<ExportPacket version {} counting {} flowset records>".format(
             self.header.version, self.header.count)
 
 while 1:
     (data, sender) = sock.recvfrom(8192)
     print("Received data from {}, length {}".format(sender, len(data)))
-    #header = Header(data[:20])
-    #header = ExportHeaderV9._make(struct.unpack("!HHIIII", data[:20]))
-    #template = ExportTemplateV9._make(struct.unpack("!HHHH", data[20:28]))
 
-    record = FlowRecord(data)
-    print(record)
+    export = ExportPacket(data)
+    print(export)
