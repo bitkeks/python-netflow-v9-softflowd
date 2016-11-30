@@ -13,9 +13,10 @@ Licensed under MIT License. See LICENSE.
 
 import socket
 import struct
+import sys
 
-HOST = '0.0.0.0'
-PORT = 9001
+HOST = sys.argv[1]
+PORT = int(sys.argv[2])
 
 field_types = {
     1: 'IN_BYTES',
@@ -151,7 +152,9 @@ class DataFlowSet:
                 dataslice = data[offset:offset+flen]
 
                 # Better solution than struct.unpack with variable field length
-                fdata = int.from_bytes(dataslice, byteorder='big')
+                fdata = 0
+                for idx, byte in enumerate(reversed(bytearray(dataslice))):
+                    fdata += byte << (idx * 8)
 
                 new_record.data[fkey] = fdata
 
