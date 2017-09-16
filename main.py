@@ -47,7 +47,7 @@ if __name__ == "__main__":
     server = SoftflowUDPHandler.get_server(args.chost, args.cport)
 
     try:
-        logging.debug("Starting the syslog listener")
+        logging.debug("Starting the NetFlow listener")
         server.serve_forever(poll_interval=0.5)
     except (IOError, SystemExit):
         raise
