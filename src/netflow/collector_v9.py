@@ -15,8 +15,6 @@ import socket
 import struct
 import sys
 
-HOST = sys.argv[1]
-PORT = int(sys.argv[2])
 
 field_types = {
     1: 'IN_BYTES',
@@ -278,6 +276,8 @@ if __name__ == "__main__":
     # We need to save the templates our NetFlow device send over time. Templates
     # are not resended every time a flow is sent to the collector.
     _templates = {}
+    HOST = sys.argv[1]
+    PORT = int(sys.argv[2])
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((HOST, PORT))
