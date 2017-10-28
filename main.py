@@ -1,8 +1,14 @@
+#!/usr/bin/env python3
 import logging
 import argparse
 import sys
-import SocketServer
-from netflow.collector_v9 import ExportPacket
+import socketserver
+
+try:
+    from netflow.collector_v9 import ExportPacket
+except ImportError:
+    print("Netflow v9 not installed as package! Running from directory.")
+    from src.netflow.collector_v9 import ExportPacket
 
 logging.getLogger().setLevel(logging.INFO)
 ch = logging.StreamHandler(sys.stdout)
@@ -19,7 +25,7 @@ parser.add_argument('-cport', type=int, default=2055,
                     help='collector listener port')
 
 
-class SoftflowUDPHandler(SocketServer.BaseRequestHandler):
+class SoftflowUDPHandler(socketserver.BaseRequestHandler):
     # We need to save the templates our NetFlow device
     # send over time. Templates are not resended every
     # time a flow is sent to the collector.
@@ -28,7 +34,7 @@ class SoftflowUDPHandler(SocketServer.BaseRequestHandler):
     @classmethod
     def get_server(cls, host, port):
         logging.info("Listening on interface {}:{}".format(host, port))
-        server = SocketServer.UDPServer((host, port), cls)
+        server = socketserver.UDPServer((host, port), cls)
         return server
 
     def handle(self):
