@@ -4,3 +4,5 @@ dist*
 .*python_netflow_v9_softflowd.egg-info/
 *.swp
 *.swo
+__pycache__
+*.json

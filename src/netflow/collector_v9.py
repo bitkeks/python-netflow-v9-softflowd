@@ -270,24 +270,3 @@ class ExportPacket:
     def __repr__(self):
         return "<ExportPacket version {} counting {} records>".format(
             self.header.version, self.header.count)
-
-
-if __name__ == "__main__":
-    # We need to save the templates our NetFlow device send over time. Templates
-    # are not resended every time a flow is sent to the collector.
-    _templates = {}
-    HOST = sys.argv[1]
-    PORT = int(sys.argv[2])
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind((HOST, PORT))
-    print("Listening on interface {}:{}".format(HOST, PORT))
-
-    while 1:
-        (data, sender) = sock.recvfrom(8192)
-        print("Received data from {}, length {}".format(sender, len(data)))
-
-        export = ExportPacket(data, _templates)
-        _templates.update(export.templates)
-
-        print("Processed ExportPacket with {} flows.".format(export.header.count))
