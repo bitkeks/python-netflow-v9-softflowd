@@ -52,6 +52,12 @@ class Connection:
         self.dest_port = src['L4_DST_PORT']
         self.size = src['IN_BYTES']
 
+        # Duration is given in milliseconds
+        self.duration = src['LAST_SWITCHED'] - src['FIRST_SWITCHED']
+        if self.duration < 0:
+            # 32 bit int has its limits. Handling overflow here
+            self.duration = (2**32 - src['FIRST_SWITCHED']) + src['LAST_SWITCHED']
+
     def __repr__(self):
         return "<Connection from {} to {}, size {}>".format(
             self.src, self.dest, self.human_size)
@@ -60,7 +66,7 @@ class Connection:
     def human_size(self):
         # Calculate a human readable size of the traffic
         if self.size < 1024:
-            return "%d" % self.size
+            return "%dB" % self.size
         elif self.size / 1024. < 1024:
             return "%.2fK" % (self.size / 1024.)
         elif self.size / 1024.**2 < 1024:
@@ -69,30 +75,42 @@ class Connection:
             return "%.2fG" % (self.size / 1024.**3)
 
     @property
+    def human_duration(self):
+        duration = self.duration // 1000  # uptime in milliseconds, floor it
+        if duration < 60:
+            # seconds
+            return "%d sec" % duration
+        if duration / 60 > 60:
+            # hours
+            return "%d:%02d.%02d hours" % (duration / 60**2, duration % 60**2 / 60, duration % 60)
+        # minutes
+        return "%02d:%02d min" % (duration / 60, duration % 60)
+
+    @property
     def hostnames(self):
         # Resolve the IPs of this flows to their hostname
-        return Pair(socket.getfqdn(self.src.exploded),
-                    socket.getfqdn(self.dest.exploded))
+        src_hostname = socket.getfqdn(self.src.compressed)
+        dest_hostname = socket.getfqdn(self.dest.compressed)
+
+        return Pair(src_hostname, dest_hostname)
 
     @property
     def service(self):
         # Resolve ports to their services, if known
         service = "unknown"
         try:
+            # Try service of sending peer first
             service = socket.getservbyport(self.src_port)
         except OSError:
-            pass
-
-        if service == "unknown":
             # Resolving the sport did not work, trying dport
             try:
                 service = socket.getservbyport(self.dest_port)
             except OSError:
                 pass
-
         return service
 
 
+# Handle CLI args and load the data dump
 if len(sys.argv) < 2:
     exit("Use {} <filename>.json".format(sys.argv[0]))
 filename = sys.argv[1]
@@ -101,30 +119,24 @@ if not os.path.exists(filename):
 with open(filename, 'r') as fh:
     data = json.loads(fh.read())
 
+
+# Go through data and disect every flow saved inside the dump
 for export in sorted(data):
     timestamp = datetime.fromtimestamp(float(export)).strftime("%Y-%m-%d %H:%M.%S")
 
     flows = data[export]
     pending = None  # Two flows normally appear together for duplex connection
     for flow in flows:
-        count_bytes = flow['IN_BYTES']
-        count_packets = flow['IN_PKTS']
-
-        #~ ips = getIPs(flow)
-        #~ src = ips.src
-        #~ dest = ips.dest
-
-        #~ print("Flow from {src} to {dest} with {packets} packets, size {size}".
-            #~ format(src=src, dest=dest, packets=count_packets, size=count_bytes))
-
         if not pending:
             pending = flow
         else:
             con = Connection(pending, flow)
             if con.size > 1024**2:
-                print("{timestamp}: {service} from {src_host} ({src}) to"\
-                    " {dest_host} ({dest}) size {size}".format(
-                    timestamp=timestamp, service=con.service.upper(), size=con.human_size,
+            #~ if con.service == "http":
+                print("{timestamp}: {service:7} | {size:8} | {duration:9} | {src_host} ({src}) to"\
+                    " {dest_host} ({dest})".format(
+                    timestamp=timestamp, service=con.service.upper(),
                     src_host=con.hostnames.src, src=con.src,
-                    dest_host=con.hostnames.dest, dest=con.dest))
+                    dest_host=con.hostnames.dest, dest=con.dest,
+                    size=con.human_size, duration=con.human_duration))
             pending = None
