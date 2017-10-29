@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+
+"""
+Example collector script for NetFlow v9.
+This file belongs to https://github.com/cooox/python-netflow-v9-softflowd.
+
+Copyright 2017 Dominik Pataky <dom@netdecorator.org>
+Licensed under MIT License. See LICENSE.
+"""
+
 import logging
 import argparse
 import sys
