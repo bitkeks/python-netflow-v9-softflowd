@@ -5,6 +5,10 @@ Version 9 is the first NetFlow version using templates.
 Templates make dynamically sized and configured NetFlow data flowsets possible,
 which makes the collector's job harder.
 
+Copyright 2017, 2018 Dominik Pataky <dev@bitkeks.eu>
+
+Licensed under MIT License. See LICENSE.
+
 ## Using the collector and analyzer
 In this repo you also find `main.py` and `analyze_json.py`.
 

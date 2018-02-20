@@ -4,7 +4,7 @@
 Example analyzing script for saved exports (as JSON).
 This file belongs to https://github.com/cooox/python-netflow-v9-softflowd.
 
-Copyright 2017 Dominik Pataky <dom@netdecorator.org>
+Copyright 2017, 2018 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 
@@ -19,15 +19,22 @@ from collections import namedtuple
 Pair = namedtuple('Pair', 'src dest')
 
 def getIPs(flow):
-    if flow['IP_PROTOCOL_VERSION'] == 4:
+    use_ipv4 = False  # optimistic default case of IPv6
+
+    if 'IP_PROTOCOL_VERSION' in flow and flow['IP_PROTOCOL_VERSION'] == 4:
+        use_ipv4 = True
+    elif 'IPV4_SRC_ADDR' in flow or 'IPV4_DST_ADDR' in flow:
+        use_ipv4 = True
+
+    if use_ipv4:
         return Pair(
             ipaddress.ip_address(flow['IPV4_SRC_ADDR']),
             ipaddress.ip_address(flow['IPV4_DST_ADDR']))
 
-    elif flow['IP_PROTOCOL_VERSION'] == 6:
-        return Pair(
-            ipaddress.ip_address(flow['IPV6_SRC_ADDR']),
-            ipaddress.ip_address(flow['IPV6_DST_ADDR']))
+    # else: return IPv6 pair
+    return Pair(
+        ipaddress.ip_address(flow['IPV6_SRC_ADDR']),
+        ipaddress.ip_address(flow['IPV6_DST_ADDR']))
 
 
 class Connection:

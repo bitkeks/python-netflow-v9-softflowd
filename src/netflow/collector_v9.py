@@ -7,7 +7,7 @@ Created for learning purposes and unsatisfying alternatives.
 This script is specifically implemented in combination with softflowd.
 See https://github.com/djmdjm/softflowd
 
-Copyright 2016 Dominik Pataky <dom@netdecorator.org>
+Copyright 2017, 2018 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 

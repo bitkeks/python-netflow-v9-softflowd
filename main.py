@@ -4,7 +4,7 @@
 Example collector script for NetFlow v9.
 This file belongs to https://github.com/cooox/python-netflow-v9-softflowd.
 
-Copyright 2017 Dominik Pataky <dom@netdecorator.org>
+Copyright 2017, 2018 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 
