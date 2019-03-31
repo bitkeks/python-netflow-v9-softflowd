@@ -181,6 +181,10 @@ class DataFlowSet:
         self.flows = []
 
         offset = 4
+
+        if self.template_id not in templates:
+            raise TemplateNotRecognized
+
         template = templates[self.template_id]
 
         # As the field lengths are variable V9 has padding to next 32 Bit
@@ -320,3 +324,7 @@ class ExportPacket:
     def __repr__(self):
         return "<ExportPacket version {} counting {} records>".format(
             self.header.version, self.header.count)
+
+
+class TemplateNotRecognized(KeyError):
+    pass

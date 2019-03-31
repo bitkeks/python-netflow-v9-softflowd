@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 """
-Example analyzing script for saved exports (as JSON).
-This file belongs to https://github.com/cooox/python-netflow-v9-softflowd.
+Example analyzing script for saved exports (by main.py, as JSON).
+This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 
-Copyright 2017, 2018 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2017-2019 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 
@@ -138,12 +138,10 @@ for export in sorted(data):
             pending = flow
         else:
             con = Connection(pending, flow)
-            if con.size > 1024**2:
-            #~ if con.service == "http":
-                print("{timestamp}: {service:7} | {size:8} | {duration:9} | {src_host} ({src}) to"\
-                    " {dest_host} ({dest})".format(
-                    timestamp=timestamp, service=con.service.upper(),
-                    src_host=con.hostnames.src, src=con.src,
-                    dest_host=con.hostnames.dest, dest=con.dest,
-                    size=con.human_size, duration=con.human_duration))
+            print("{timestamp}: {service:7} | {size:8} | {duration:9} | {src_host} ({src}) to"\
+                " {dest_host} ({dest})".format(
+                timestamp=timestamp, service=con.service.upper(),
+                src_host=con.hostnames.src, src=con.src,
+                dest_host=con.hostnames.dest, dest=con.dest,
+                size=con.human_size, duration=con.human_duration))
             pending = None
