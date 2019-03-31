@@ -5,22 +5,10 @@ Version 9 is the first NetFlow version using templates.
 Templates make dynamically sized and configured NetFlow data flowsets possible,
 which makes the collector's job harder.
 
-Copyright 2017-2019 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2016-2019 Dominik Pataky <dev@bitkeks.eu>
+
 Licensed under MIT License. See LICENSE.
 
-## Running tests
-The file `tests.py` contains some tests based on real softflowd export packets.
-To create the test packets try the following:
-
-  1. Run tcpdump/Wireshark on your interface
-  2. Produce some sample flows, e.g. surf the web and refresh your mail client.
-  3. Save the pcap file to disk.
-  4. Run tcpdump/Wireshark again on an interface.
-  4. Run softflowd with the `-r <pcap_file>` flag. softflowd reads the captured traffic, produces the flows and exports them. Use the interface you are capturing packets on to send the exports.
-  5. Examine the captured traffic. Use Wireshark and set the `CFLOW` "decode as" dissector on the export packets (e.g. based on the port). The `data` fields should then be shown correctly as Netflow payload.
-  6. Extract this payload as hex stream. Anonymize the IP addresses with a hex editor if necessary. A recommended hex editor is [bless](https://github.com/afrantzis/bless).
-
-The collector is run in a background thread. The difference in transmission speed from the exporting client can lead to different results, possibly caused by race conditions during the usage of the JSON output file.
 
 ## Using the collector and analyzer
 In this repo you also find `main.py` and `analyze_json.py`.
@@ -54,3 +42,17 @@ nice graphs or calculate broader statistics.
 I have specifically written this script in combination with NetFlow exports from
 [softflowd](https://github.com/djmdjm/softflowd) v0.9.9 - it should work with every
 correct NetFlow v9 implementation though.
+
+### Running tests
+The file `tests.py` contains some tests based on real softflowd export packets.
+To create the test packets try the following:
+
+  1. Run tcpdump/Wireshark on your interface
+  2. Produce some sample flows, e.g. surf the web and refresh your mail client.
+  3. Save the pcap file to disk.
+  4. Run tcpdump/Wireshark again on an interface.
+  4. Run softflowd with the `-r <pcap_file>` flag. softflowd reads the captured traffic, produces the flows and exports them. Use the interface you are capturing packets on to send the exports.
+  5. Examine the captured traffic. Use Wireshark and set the `CFLOW` "decode as" dissector on the export packets (e.g. based on the port). The `data` fields should then be shown correctly as Netflow payload.
+  6. Extract this payload as hex stream. Anonymize the IP addresses with a hex editor if necessary. A recommended hex editor is [bless](https://github.com/afrantzis/bless).
+
+The collector is run in a background thread. The difference in transmission speed from the exporting client can lead to different results, possibly caused by race conditions during the usage of the JSON output file.
