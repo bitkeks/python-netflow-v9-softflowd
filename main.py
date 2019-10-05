@@ -127,7 +127,7 @@ class NetFlowListener(threading.Thread):
                 # data back into the queue and try to decode them again
                 if export.contains_new_templates and to_retry:
                     __log__.debug("Received new template(s)")
-                    __log__.debug("Will re-attempt to decode %d old v9 ExportPackets",
+                    __log__.debug("Will re-attempt to decode %d old ExportPackets",
                                   len(to_retry))
                     for p in to_retry:
                         self.input.put(p)
