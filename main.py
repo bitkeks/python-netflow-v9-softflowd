@@ -8,133 +8,123 @@ Copyright 2017-2019 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 
-import logging
 import argparse
+from collections import namedtuple
+from queue import Queue
+import json
+import logging
 import sys
 import socketserver
+import threading
 import time
-import json
-import os.path
+
+from netflow.v9 import ExportPacket, TemplateNotRecognized
 
 
-logging.getLogger().setLevel(logging.INFO)
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(message)s')
-ch.setFormatter(formatter)
-logging.getLogger().addHandler(ch)
+__log__ = logging.getLogger(__name__)
 
-try:
-    from netflow.collector_v9 import ExportPacket, TemplateNotRecognized
-except ImportError:
-    logging.warning("Netflow v9 not installed as package! Running from directory.")
-    from src.netflow.collector_v9 import ExportPacket, TemplateNotRecognized
+# Amount of time to wait before dropping an undecodable ExportPacket
+PACKET_TIMEOUT = 60 * 60
 
-parser = argparse.ArgumentParser(description="A sample netflow collector.")
-parser.add_argument("--host", type=str, default="",
-                    help="collector listening address")
-parser.add_argument("--port", "-p", type=int, default=2055,
-                    help="collector listener port")
-parser.add_argument("--file", "-o", type=str, dest="output_file",
-                    default="{}.json".format(int(time.time())),
-                    help="collector export JSON file")
-parser.add_argument("--debug", "-D", action="store_true",
-                    help="Enable debug output")
+RawPacket = namedtuple('RawPacket', ['ts', 'data'])
 
-
-class SoftflowUDPHandler(socketserver.BaseRequestHandler):
-    # We need to save the templates our NetFlow device
-    # send over time. Templates are not resended every
-    # time a flow is sent to the collector.
-    templates = {}
-    buffered = {}
-
-    @classmethod
-    def set_output_file(cls, path):
-        cls.output_file = path
-
+class QueuingRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
-        if not os.path.exists(self.output_file):
-            with open(self.output_file, 'w') as fh:
-                json.dump({}, fh)
-
-        with open(self.output_file, 'r') as fh:
-            try:
-                existing_data = json.load(fh)
-            except json.decoder.JSONDecodeError as ex:
-                logging.error("Malformed JSON output file. Cannot read existing data, aborting.")
-                return
-
         data = self.request[0]
-        host = self.client_address[0]
-        logging.debug("Received data from {}, length {}".format(host, len(data)))
+        self.server.queue.put(RawPacket(time.time(), data))
+        __log__.debug(
+            "Recieved %d bytes of data from %s", len(data), self.client_address[0]
+        )
 
-        export = None
-        try:
-            export = ExportPacket(data, self.templates)
-        except TemplateNotRecognized:
-            self.buffered[time.time()] = data
-            logging.warning("Received data with unknown template, data stored in buffer!")
-            return
 
-        if not export:
-            logging.error("Error with exception handling while disecting export, export is None")
-            return
+class QueuingUDPListener(socketserver.ThreadingUDPServer):
+    """A threaded UDP server that adds a (time, data) tuple to a queue for
+    every request it sees
+    """
+    def __init__(self, interface, queue):
+        self.queue = queue
+        super().__init__(interface, QueuingRequestHandler)
 
-        logging.debug("Processed ExportPacket with {} flows.".format(export.header.count))
-        logging.debug("Size of buffer: {}".format(len(self.buffered)))
 
-        # In case the export held some new templates
-        self.templates.update(export.templates)
+def get_export_packets(host, port):
+    """A generator that will yield ExportPacket objects until it is killed
+    or has a truthy value sent to it"""
 
-        remain_buffered = {}
-        processed = []
-        for timestamp, data in self.buffered.items():
+    __log__.info("Starting the NetFlow listener on {}:{}".format(host, port))
+    queue = Queue()
+    server = QueuingUDPListener((host, port), queue)
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+
+    # Process packets from the queue
+    templates = {}
+    to_retry = []
+    try:
+        while True:
+            pkt = queue.get()
             try:
-                buffered_export = ExportPacket(data, self.templates)
-                processed.append(timestamp)
+                export = ExportPacket(pkt.data, templates)
             except TemplateNotRecognized:
-                remain_buffered[timestamp] = data
-                logging.debug("Template of buffered ExportPacket still not recognized")
+                if time.time() - pkt.ts > PACKET_TIMEOUT:
+                    __log__.warning("Dropping an old and undecodable ExportPacket")
+                else:
+                    to_retry.append(pkt)
+                    __log__.debug("Failed to decode an ExportPacket - will "
+                                  "re-attempt when a new template is dicovered")
                 continue
-            logging.debug("Processed buffered ExportPacket with {} flows.".format(buffered_export.header.count))
-            existing_data[timestamp] = [flow.data for flow in buffered_export.flows]
 
-        # Delete processed items from the buffer
-        for pro in processed:
-            del self.buffered[pro]
+            __log__.debug("Processed an ExportPacket with %d flows.",
+                          export.header.count)
 
-        # Update the buffer
-        self.buffered.update(remain_buffered)
+            # If any new templates were discovered, dump the unprocessable
+            # data back into the queue and try to decode them again
+            if export.contains_new_templates and to_retry:
+                __log__.debug("Recieved new template(s)")
+                __log__.debug("Will re-attempt to decode %d old ExportPackets",
+                              len(to_retry))
+                for p in to_retry:
+                    queue.put(p)
+                to_retry.clear()
 
-        # Append new flows
-        existing_data[time.time()] = [flow.data for flow in export.flows]
-
-        with open(self.output_file, 'w') as fh:
-            json.dump(existing_data, fh)
-
+            stop = yield pkt.ts, export
+            if stop:
+                break
+    finally:
+        __log__.info("Shutting down the NetFlow listener")
+        server.shutdown()
+        server.server_close()
+        thread.join()
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="A sample netflow collector.")
+    parser.add_argument("--host", type=str, default="0.0.0.0",
+                        help="collector listening address")
+    parser.add_argument("--port", "-p", type=int, default=2055,
+                        help="collector listener port")
+    parser.add_argument("--file", "-o", type=str, dest="output_file",
+                        default="{}.json".format(int(time.time())),
+                        help="collector export JSON file")
+    parser.add_argument("--debug", "-D", action="store_true",
+                        help="Enable debug output")
     args = parser.parse_args()
 
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
+
     if args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+        __log__.setLevel(logging.DEBUG)
 
-    output_file = args.output_file
-    SoftflowUDPHandler.set_output_file(output_file)
-
-    host = args.host
-    port = args.port
-    logging.info("Listening on interface {}:{}".format(host, port))
-    server = socketserver.UDPServer((host, port), SoftflowUDPHandler)
-
+    data = {}
     try:
-        logging.debug("Starting the NetFlow listener")
-        server.serve_forever(poll_interval=0.5)
-    except (IOError, SystemExit):
-        raise
+        # TODO: For a long-running processes, this will consume loads of memory
+        for ts, export in get_export_packets(args.host, args.port):
+            data[ts] = [flow.data for flow in export.flows]
     except KeyboardInterrupt:
-        raise
+        pass
 
-    server.server_close()
+    if data:
+        __log__.info("Outputting collected data to '%s'", args.output_file)
+        with open(args.output_file, 'w') as f:
+            json.dump(data, f)
+    else:
+        __log__.info("No data collected")

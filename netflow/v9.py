@@ -11,12 +11,10 @@ Copyright 2017, 2018 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 
-import socket
 import struct
-import sys
 
 
-field_types = {
+FIELD_TYPES = {
     0: 'UNKNOWN_FIELD_TYPE',  # fallback for unknown field types
 
     # Cisco specs for NetFlow v9
@@ -153,10 +151,14 @@ field_types = {
 }
 
 
+class TemplateNotRecognized(KeyError):
+    pass
+
+
 class DataRecord:
     """This is a 'flow' as we want it from our source. What it contains is
     variable in NetFlow V9, so to work with the data you have to analyze the
-    data dict keys (which are integers and can be mapped with the field_types
+    data dict keys (which are integers and can be mapped with the FIELD_TYPES
     dict).
 
     Should hold a 'data' dict with keys=field_type (integer) and value (in bytes).
@@ -195,7 +197,7 @@ class DataFlowSet:
 
             for field in template.fields:
                 flen = field.field_length
-                fkey = field_types[field.field_type]
+                fkey = FIELD_TYPES[field.field_type]
                 fdata = None
 
                 # The length of the value byte slice is defined in the template
@@ -218,20 +220,18 @@ class DataFlowSet:
 
 
 class TemplateField:
-    """A field with type identifier and length.
-    """
+    """A field with type identifier and length."""
     def __init__(self, field_type, field_length):
         self.field_type = field_type  # integer
         self.field_length = field_length  # bytes
 
     def __repr__(self):
         return "<TemplateField type {}:{}, length {}>".format(
-            self.field_type, field_types[self.field_type], self.field_length)
+            self.field_type, FIELD_TYPES[self.field_type], self.field_length)
 
 
 class TemplateRecord:
-    """A template record contained in a TemplateFlowSet.
-    """
+    """A template record contained in a TemplateFlowSet."""
     def __init__(self, template_id, field_count, fields):
         self.template_id = template_id
         self.field_count = field_count
@@ -240,7 +240,7 @@ class TemplateRecord:
     def __repr__(self):
         return "<TemplateRecord {} with {} fields: {}>".format(
             self.template_id, self.field_count,
-            ' '.join([field_types[field.field_type] for field in self.fields]))
+            ' '.join([FIELD_TYPES[field.field_type] for field in self.fields]))
 
 
 class TemplateFlowSet:
@@ -268,7 +268,7 @@ class TemplateFlowSet:
                 # Get all fields of this template
                 offset += 4
                 field_type, field_length = struct.unpack('!HH', data[offset:offset+4])
-                if field_type not in field_types:
+                if field_type not in FIELD_TYPES:
                     field_type = 0  # Set field_type to UNKNOWN_FIELD_TYPE as fallback
                 field = TemplateField(field_type, field_length)
                 fields.append(field)
@@ -288,8 +288,7 @@ class TemplateFlowSet:
 
 
 class Header:
-    """The header of the ExportPacket.
-    """
+    """The header of the ExportPacket."""
     def __init__(self, data):
         pack = struct.unpack('!HHIIII', data[:20])
 
@@ -302,11 +301,11 @@ class Header:
 
 
 class ExportPacket:
-    """The flow record holds the header and all template and data flowsets.
-    """
+    """The flow record holds the header and all template and data flowsets."""
     def __init__(self, data, templates):
         self.header = Header(data)
         self.templates = templates
+        self._new_templates = False
         self.flows = []
 
         offset = 20
@@ -314,6 +313,12 @@ class ExportPacket:
             flowset_id = struct.unpack('!H', data[offset:offset+2])[0]
             if flowset_id == 0:  # TemplateFlowSet always have id 0
                 tfs = TemplateFlowSet(data[offset:])
+                # Check for any new/changed templates
+                if not self._new_templates:
+                    for id_, template in tfs.templates.items():
+                        if id_ not in self.templates or self.templates[id_] != template:
+                            self._new_templates = True
+                            break
                 self.templates.update(tfs.templates)
                 offset += tfs.length
             else:
@@ -321,10 +326,10 @@ class ExportPacket:
                 self.flows += dfs.flows
                 offset += dfs.length
 
+    @property
+    def contains_new_templates(self):
+        return self._new_templates
+
     def __repr__(self):
         return "<ExportPacket version {} counting {} records>".format(
             self.header.version, self.header.count)
-
-
-class TemplateNotRecognized(KeyError):
-    pass
