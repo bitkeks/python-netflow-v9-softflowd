@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Example collector script for NetFlow v9.
+Example collector script for NetFlow v1, v5, and v9.
 This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 
 Copyright 2017-2019 Dominik Pataky <dev@bitkeks.eu>
@@ -18,7 +18,7 @@ import socketserver
 import threading
 import time
 
-from netflow.v9 import ExportPacket, TemplateNotRecognized
+from netflow import parse_packet, TemplateNotRecognized, UnknownNetFlowVersion
 
 
 __log__ = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ __log__ = logging.getLogger(__name__)
 # Amount of time to wait before dropping an undecodable ExportPacket
 PACKET_TIMEOUT = 60 * 60
 
+# TODO: Add source IP
 RawPacket = namedtuple('RawPacket', ['ts', 'data'])
 
 class QueuingRequestHandler(socketserver.BaseRequestHandler):
@@ -110,24 +111,27 @@ class NetFlowListener(threading.Thread):
                     continue
 
                 try:
-                    export = ExportPacket(pkt.data, templates)
+                    export = parse_packet(pkt.data, templates)
+                except UnknownNetFlowVersion as e:
+                    __log__.error("%s, ignoring the packet", e)
+                    continue
                 except TemplateNotRecognized:
                     if time.time() - pkt.ts > PACKET_TIMEOUT:
-                        __log__.warning("Dropping an old and undecodable ExportPacket")
+                        __log__.warning("Dropping an old and undecodable v9 ExportPacket")
                     else:
                         to_retry.append(pkt)
-                        __log__.debug("Failed to decode a ExportPacket - will "
+                        __log__.debug("Failed to decode a v9 ExportPacket - will "
                                       "re-attempt when a new template is discovered")
                     continue
 
-                __log__.debug("Processed an ExportPacket with %d flows.",
+                __log__.debug("Processed a v%d ExportPacket with %d flows.",
                               export.header.version, export.header.count)
 
                 # If any new templates were discovered, dump the unprocessable
                 # data back into the queue and try to decode them again
-                if export.contains_new_templates and to_retry:
+                if (export.header.version == 9 and export.contains_new_templates and to_retry):
                     __log__.debug("Received new template(s)")
-                    __log__.debug("Will re-attempt to decode %d old ExportPackets",
+                    __log__.debug("Will re-attempt to decode %d old v9 ExportPackets",
                                   len(to_retry))
                     for p in to_retry:
                         self.input.put(p)

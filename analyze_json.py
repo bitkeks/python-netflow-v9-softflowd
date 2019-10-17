@@ -26,6 +26,16 @@ Pair = namedtuple('Pair', ['src', 'dest'])
 def resolve_hostname(ip):
     return socket.getfqdn(ip)
 
+
+def fallback(d, keys):
+    for k in keys:
+        try:
+            return d[k]
+        except KeyError:
+            pass
+    raise KeyError(", ".join(keys))
+
+
 class Connection:
     """Connection model for two flows.
     The direction of the data flow can be seen by looking at the size.
@@ -37,7 +47,10 @@ class Connection:
         if not flow1 or not flow2:
             raise Exception("A connection requires two flows")
 
-        if flow1['IN_BYTES'] >= flow2['IN_BYTES']:
+        # Assume the size that sent the most data is the source
+        size1 = fallback(flow1, ['IN_BYTES', 'IN_OCTETS'])
+        size2 = fallback(flow2, ['IN_BYTES', 'IN_OCTETS'])
+        if size1 >= size2:
             src = flow1
             dest = flow2
         else:
@@ -47,9 +60,9 @@ class Connection:
         ips = self.get_ips(src)
         self.src = ips.src
         self.dest = ips.dest
-        self.src_port = src['L4_SRC_PORT']
-        self.dest_port = src['L4_DST_PORT']
-        self.size = src['IN_BYTES']
+        self.src_port = fallback(src, ['L4_SRC_PORT', 'SRC_PORT'])
+        self.dest_port = fallback(src, ['L4_DST_PORT', 'DST_PORT'])
+        self.size = fallback(src, ['IN_BYTES', 'IN_OCTETS'])
 
         # Duration is given in milliseconds
         self.duration = src['LAST_SWITCHED'] - src['FIRST_SWITCHED']

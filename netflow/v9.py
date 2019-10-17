@@ -4,6 +4,8 @@
 Netflow V9 collector and parser implementation in Python 3.
 Created for learning purposes and unsatisfying alternatives.
 
+Reference: https://www.cisco.com/en/US/technologies/tk648/tk362/technologies_white_paper09186a00800a3db9.html
+
 This script is specifically implemented in combination with softflowd.
 See https://github.com/djmdjm/softflowd
 
@@ -258,7 +260,7 @@ class TemplateFlowSet:
         offset = 4  # Skip header
 
         # Iterate through all template records in this template flowset
-        while offset != self.length:
+        while offset < self.length:
             pack = struct.unpack('!HH', data[offset:offset+4])
             template_id = pack[0]
             field_count = pack[1]
@@ -288,9 +290,12 @@ class TemplateFlowSet:
 
 
 class Header:
-    """The header of the ExportPacket."""
+    """The header of the V9ExportPacket"""
+
+    length = 20
+
     def __init__(self, data):
-        pack = struct.unpack('!HHIIII', data[:20])
+        pack = struct.unpack('!HHIIII', data[:self.length])
 
         self.version = pack[0]
         self.count = pack[1]  # not sure if correct. softflowd: no of flows
@@ -300,15 +305,16 @@ class Header:
         self.source_id = pack[5]
 
 
-class ExportPacket:
+class V9ExportPacket:
     """The flow record holds the header and all template and data flowsets."""
+
     def __init__(self, data, templates):
         self.header = Header(data)
         self.templates = templates
         self._new_templates = False
         self.flows = []
 
-        offset = 20
+        offset = self.header.length
         while offset != len(data):
             flowset_id = struct.unpack('!H', data[offset:offset+2])[0]
             if flowset_id == 0:  # TemplateFlowSet always have id 0
@@ -331,5 +337,6 @@ class ExportPacket:
         return self._new_templates
 
     def __repr__(self):
-        return "<ExportPacket version {} counting {} records>".format(
-            self.header.version, self.header.count)
+        s = " and new template(s)" if self.contains_new_templates else ""
+        return "<ExportPacket v{} with {} records{}>".format(
+            self.header.version, self.header.count, s)
