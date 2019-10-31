@@ -8,6 +8,7 @@ from netflow.v9 import V9ExportPacket, TemplateNotRecognized
 
 __all__ = ["TemplateNotRecognized", "UnknownNetFlowVersion", "parse_packet"]
 
+
 class UnknownNetFlowVersion(Exception):
     def __init__(self, data, version):
         self.data = data

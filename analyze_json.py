@@ -22,7 +22,7 @@ import sys
 Pair = namedtuple('Pair', ['src', 'dest'])
 
 
-@functools.lru_cache(maxsize=0)
+@functools.lru_cache(maxsize=128)
 def resolve_hostname(ip):
     return socket.getfqdn(ip)
 
@@ -48,6 +48,7 @@ class Connection:
             raise Exception("A connection requires two flows")
 
         # Assume the size that sent the most data is the source
+        # TODO: this might not always be right, maybe use earlier timestamp?
         size1 = fallback(flow1, ['IN_BYTES', 'IN_OCTETS'])
         size2 = fallback(flow2, ['IN_BYTES', 'IN_OCTETS'])
         if size1 >= size2:
@@ -61,7 +62,7 @@ class Connection:
         self.src = ips.src
         self.dest = ips.dest
         self.src_port = fallback(src, ['L4_SRC_PORT', 'SRC_PORT'])
-        self.dest_port = fallback(src, ['L4_DST_PORT', 'DST_PORT'])
+        self.dest_port = fallback(dest, ['L4_DST_PORT', 'DST_PORT'])
         self.size = fallback(src, ['IN_BYTES', 'IN_OCTETS'])
 
         # Duration is given in milliseconds
@@ -82,8 +83,9 @@ class Connection:
         #       could lose precision.
 
         # IPv4
-        if (flow.get('IP_PROTOCOL_VERSION') == 4 or 'IPV4_SRC_ADDR' in flow or
-                'IPV4_DST_ADDR' in flow):
+        if flow.get('IP_PROTOCOL_VERSION') == 4 \
+                or 'IPV4_SRC_ADDR' in flow \
+                or 'IPV4_DST_ADDR' in flow:
             return Pair(
                 ipaddress.ip_address(flow['IPV4_SRC_ADDR']),
                 ipaddress.ip_address(flow['IPV4_DST_ADDR'])
@@ -157,10 +159,7 @@ if __name__ == "__main__":
                 pending = flow
                 continue
             con = Connection(pending, flow)
-            print("{timestamp}: {service:7} | {size:8} | {duration:9} | {src_host} ({src}) to"\
-                " {dest_host} ({dest})".format(
-                timestamp=timestamp, service=con.service.upper(),
-                src_host=con.hostnames.src, src=con.src,
-                dest_host=con.hostnames.dest, dest=con.dest,
-                size=con.human_size, duration=con.human_duration))
+            print("{timestamp}: {service:7} | {size:8} | {duration:9} | {src_host} ({src}) to {dest_host} ({dest})" \
+                .format(timestamp=timestamp, service=con.service.upper(), src_host=con.hostnames.src, src=con.src,
+                        dest_host=con.hostnames.dest, dest=con.dest, size=con.human_size, duration=con.human_duration))
             pending = None

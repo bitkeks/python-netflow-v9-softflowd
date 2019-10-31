@@ -34,7 +34,7 @@ class QueuingRequestHandler(socketserver.BaseRequestHandler):
         data = self.request[0]
         self.server.queue.put(RawPacket(time.time(), data))
         __log__.debug(
-            "Recieved %d bytes of data from %s", len(data), self.client_address[0]
+            "Received %d bytes of data from %s", len(data), self.client_address[0]
         )
 
 
@@ -191,6 +191,7 @@ if __name__ == "__main__":
         pass
 
     if data:
+        # TODO: this should be done periodically to not lose any data (only saved in memory)
         __log__.info("Outputting collected data to '%s'", args.output_file)
         with open(args.output_file, 'w') as f:
             json.dump(data, f)
