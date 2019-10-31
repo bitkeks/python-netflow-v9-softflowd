@@ -21,7 +21,7 @@ import time
 from netflow import parse_packet, TemplateNotRecognized, UnknownNetFlowVersion
 
 
-__log__ = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # Amount of time to wait before dropping an undecodable ExportPacket
 PACKET_TIMEOUT = 60 * 60
@@ -29,11 +29,12 @@ PACKET_TIMEOUT = 60 * 60
 # TODO: Add source IP
 RawPacket = namedtuple('RawPacket', ['ts', 'data'])
 
+
 class QueuingRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
         data = self.request[0]
         self.server.queue.put(RawPacket(time.time(), data))
-        __log__.debug(
+        logger.debug(
             "Received %d bytes of data from %s", len(data), self.client_address[0]
         )
 
@@ -76,7 +77,7 @@ class NetFlowListener(threading.Thread):
     """
 
     def __init__(self, host, port):
-        __log__.info("Starting the NetFlow listener on {}:{}".format(host, port))
+        logger.info("Starting the NetFlow listener on {}:{}".format(host, port))
         self.output = queue.Queue()
         self.input = queue.Queue()
         self.server = QueuingUDPListener((host, port), self.input)
@@ -113,26 +114,26 @@ class NetFlowListener(threading.Thread):
                 try:
                     export = parse_packet(pkt.data, templates)
                 except UnknownNetFlowVersion as e:
-                    __log__.error("%s, ignoring the packet", e)
+                    logger.error("%s, ignoring the packet", e)
                     continue
                 except TemplateNotRecognized:
                     if time.time() - pkt.ts > PACKET_TIMEOUT:
-                        __log__.warning("Dropping an old and undecodable v9 ExportPacket")
+                        logger.warning("Dropping an old and undecodable v9 ExportPacket")
                     else:
                         to_retry.append(pkt)
-                        __log__.debug("Failed to decode a v9 ExportPacket - will "
+                        logger.debug("Failed to decode a v9 ExportPacket - will "
                                       "re-attempt when a new template is discovered")
                     continue
 
-                __log__.debug("Processed a v%d ExportPacket with %d flows.",
-                              export.header.version, export.header.count)
+                logger.debug("Processed a v%d ExportPacket with %d flows.",
+                             export.header.version, export.header.count)
 
                 # If any new templates were discovered, dump the unprocessable
                 # data back into the queue and try to decode them again
                 if (export.header.version == 9 and export.contains_new_templates and to_retry):
-                    __log__.debug("Received new template(s)")
-                    __log__.debug("Will re-attempt to decode %d old v9 ExportPackets",
-                                  len(to_retry))
+                    logger.debug("Received new template(s)")
+                    logger.debug("Will re-attempt to decode %d old v9 ExportPackets",
+                                 len(to_retry))
                     for p in to_retry:
                         self.input.put(p)
                     to_retry.clear()
@@ -143,12 +144,12 @@ class NetFlowListener(threading.Thread):
             self.server.server_close()
 
     def stop(self):
-        __log__.info("Shutting down the NetFlow listener")
+        logger.info("Shutting down the NetFlow listener")
         self._shutdown.set()
 
-    def join(self):
-        self.thread.join()
-        super().join()
+    def join(self, timeout=None):
+        self.thread.join(timeout=timeout)
+        super().join(timeout=timeout)
 
 
 def get_export_packets(host, port):
@@ -180,7 +181,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
 
     if args.debug:
-        __log__.setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
 
     data = {}
     try:
@@ -188,12 +189,13 @@ if __name__ == "__main__":
         for ts, export in get_export_packets(args.host, args.port):
             data[ts] = [flow.data for flow in export.flows]
     except KeyboardInterrupt:
+        logger.info("Received KeyboardInterrupt, passing through")
         pass
 
     if data:
         # TODO: this should be done periodically to not lose any data (only saved in memory)
-        __log__.info("Outputting collected data to '%s'", args.output_file)
+        logger.info("Outputting collected data to '%s'", args.output_file)
         with open(args.output_file, 'w') as f:
             json.dump(data, f)
     else:
-        __log__.info("No data collected")
+        logger.info("No data collected")

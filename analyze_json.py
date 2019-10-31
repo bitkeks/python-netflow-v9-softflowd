@@ -29,10 +29,8 @@ def resolve_hostname(ip):
 
 def fallback(d, keys):
     for k in keys:
-        try:
+        if k in d:
             return d[k]
-        except KeyError:
-            pass
     raise KeyError(", ".join(keys))
 
 
