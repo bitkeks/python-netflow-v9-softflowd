@@ -1,5 +1,5 @@
 # Python NetFlow v9 parser and UDP collector
-This script is able to parse incoming UDP NetFlow packets of **NetFlow version 9**.
+This script is able to collect and parse incoming UDP NetFlow packets of **NetFlow versions 1, 5 and 9**.
 
 Version 9 is the first NetFlow version using templates.
 Templates make dynamically sized and configured NetFlow data flowsets possible,

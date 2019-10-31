@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
 
-from setuptools import setup, find_packages
-import os
+from setuptools import setup
 
-data_files = [(d, [os.path.join(d, f) for f in files])
-              for d, folders, files in os.walk(os.path.join('src', 'config'))]
-
-setup(name='netflow-v9',
-      version='0.7.0',
-      description='NetFlow v9 parser and collector implemented in Python 3. Developed to be used with softflowd v0.9.9',
+setup(name='netflow',
+      version='0.8.0',
+      description='NetFlow v1, v5, and v9 collector, parser and analyzer implemented in Python 3.',
       author='Dominik Pataky',
       author_email='dev@bitkeks.eu',
-      packages=find_packages('src'),
-      package_dir={'': 'src'},
+      packages=["netflow"],
       license='MIT'
 )
