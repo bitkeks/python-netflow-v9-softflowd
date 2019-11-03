@@ -172,8 +172,8 @@ if __name__ == "__main__":
     # Go through data and dissect every flow saved inside the dump
     for key in sorted(data):
         timestamp = datetime.fromtimestamp(float(key)).strftime("%Y-%m-%d %H:%M.%S")
-
-        flows = data[key]
+        client = data[key]["client"]
+        flows = data[key]["flows"]
         pending = None  # Two flows normally appear together for duplex connection
         for flow in flows:
             if not pending:
