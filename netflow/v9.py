@@ -284,7 +284,7 @@ class TemplateFlowSet:
                 field = TemplateField(field_type, field_length)
                 fields.append(field)
 
-            # Create a tempalte object with all collected data
+            # Create a template object with all collected data
             template = TemplateRecord(template_id, field_count, fields)
 
             # Append the new template to the global templates list

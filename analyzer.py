@@ -60,6 +60,18 @@ class Connection:
             src = flow2
             dest = flow1
 
+        # TODO: this next approach uses the lower port as the service identifier
+        # port1 = fallback(flow1, ['L4_SRC_PORT', 'SRC_PORT'])
+        # port2 = fallback(flow2, ['L4_SRC_PORT', 'SRC_PORT'])
+        #
+        # src = flow1
+        # dest = flow2
+        # if port1 > port2:
+        #     src = flow2
+        #     dest = flow1
+
+        self.src_flow = src
+        self.dest_flow = dest
         ips = self.get_ips(src)
         self.src = ips.src
         self.dest = ips.dest
@@ -128,18 +140,26 @@ class Connection:
     @property
     def service(self):
         # Resolve ports to their services, if known
-        # Try source port, fallback to dest port, otherwise "unknown"
+        default = "({} {})".format(self.src_port, self.dest_port)
+        if self.src_port > 10000:
+            return default
         with contextlib.suppress(OSError):
             return socket.getservbyport(self.src_port)
         with contextlib.suppress(OSError):
             return socket.getservbyport(self.dest_port)
-        return "unknown"
+        return default
+
+    @property
+    def total_packets(self):
+        return self.src_flow["IN_PKTS"] + self.dest_flow["IN_PKTS"]
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Output a basic analysis of NetFlow data")
     parser.add_argument('-f', '--file', dest='file', type=str, default=sys.stdin,
                         help="The file to analyze (defaults to stdin if not provided)")
+    parser.add_argument('-p', '--packets', dest='packets_threshold', type=int, default=10,
+                        help="Number of packets representing the lower bound in connections to be processed")
     args = parser.parse_args()
 
     # Using a file and using stdin differ in their further usage for gzip.open
@@ -170,17 +190,74 @@ if __name__ == "__main__":
             data[ts] = entry[ts]
 
     # Go through data and dissect every flow saved inside the dump
+
+    # The following dict holds flows which are looking for a peer, to analyze a duplex 'Connection'.
+    # For each flow, the destination address is looked up. If the peer is not in the list of pending peers,
+    # insert this flow, waiting for its peer. If found, take the waiting peer and create a Connection object.
+    pending = {}
+    skipped = 0
+    skipped_threshold = args.packets_threshold
+
     for key in sorted(data):
         timestamp = datetime.fromtimestamp(float(key)).strftime("%Y-%m-%d %H:%M.%S")
         client = data[key]["client"]
         flows = data[key]["flows"]
-        pending = None  # Two flows normally appear together for duplex connection
-        for flow in flows:
-            if not pending:
-                pending = flow
+
+        for flow in sorted(flows, key=lambda x: x["FIRST_SWITCHED"]):
+            first_switched = flow["FIRST_SWITCHED"]
+
+            if first_switched - 1 in pending:
+                # TODO: handle fitting, yet mismatching (here: 1 second) pairs
+                pass
+
+            if first_switched not in pending:
+                pending[first_switched] = {}
+
+            # Find the peer for this connection
+            if flow["IP_PROTOCOL_VERSION"] == 4:
+                local_peer = flow["IPV4_SRC_ADDR"]
+                remote_peer = flow["IPV4_DST_ADDR"]
+            else:
+                local_peer = flow["IPV6_SRC_ADDR"]
+                remote_peer = flow["IPV6_DST_ADDR"]
+
+            if remote_peer in pending[first_switched]:
+                # The destination peer put itself into the pending dict, getting and removing entry
+                peer_flow = pending[first_switched].pop(remote_peer)
+                if len(pending[first_switched]) == 0:
+                    del pending[first_switched]
+            else:
+                # Flow did not find a matching, pending peer - inserting itself
+                pending[first_switched][local_peer] = flow
                 continue
-            con = Connection(pending, flow)
-            print("{timestamp}: {service:<10} | {size:8} | {duration:9} | {src_host} ({src}) to {dest_host} ({dest})" \
-                .format(timestamp=timestamp, service=con.service.upper(), src_host=con.hostnames.src, src=con.src,
-                        dest_host=con.hostnames.dest, dest=con.dest, size=con.human_size, duration=con.human_duration))
-            pending = None
+
+            con = Connection(flow, peer_flow)
+            if con.total_packets < skipped_threshold:
+                skipped += 1
+                continue
+
+            print("{timestamp}: {service:<14} | {size:8} | {duration:9} | {packets:5} | Between {src_host} ({src}) and {dest_host} ({dest})" \
+                  .format(timestamp=timestamp, service=con.service.upper(), src_host=con.hostnames.src, src=con.src,
+                          dest_host=con.hostnames.dest, dest=con.dest, size=con.human_size, duration=con.human_duration,
+                          packets=con.total_packets))
+
+    if skipped > 0:
+        print(f"{skipped} connections skipped, because they had less than {skipped_threshold} packets.")
+
+    if len(pending) > 0:
+        print(f"There are {len(pending)} first_switched entries left in the pending dict!")
+        all_noise = True
+        for first_switched, flows in sorted(pending.items(), key=lambda x: x[0]):
+            for peer, flow in flows.items():
+                # Ignore all pings, SYN scans and other noise to find only those peers left over which need a fix
+                if flow["IN_PKTS"] < skipped_threshold:
+                    continue
+                all_noise = False
+
+                if flow["IP_PROTOCOL_VERSION"] == 4:
+                    print(first_switched, peer, flow["IPV4_DST_ADDR"], flow["IN_PKTS"])
+                else:
+                    print(first_switched, peer, flow["IPV6_DST_ADDR"], flow["IN_PKTS"])
+
+        if all_noise:
+            print("They were all noise!")

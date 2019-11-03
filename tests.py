@@ -132,7 +132,7 @@ class TestSoftFlowExport(unittest.TestCase):
         pkts, _, _ = send_recv_packets([TEMPLATE_PACKET, *PACKETS])
         data = {p[0]: [f.data for f in p[1].flows] for p in pkts}
         analyzer = subprocess.run(
-            [sys.executable, 'analyze_json.py'],
+            [sys.executable, 'analyzer.py'],
             input=json.dumps(data),
             encoding='utf-8',
             capture_output=True
