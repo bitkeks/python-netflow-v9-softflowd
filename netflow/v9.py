@@ -13,6 +13,7 @@ Copyright 2017, 2018 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 
+import ipaddress
 import struct
 
 
@@ -200,7 +201,6 @@ class DataFlowSet:
             for field in template.fields:
                 flen = field.field_length
                 fkey = FIELD_TYPES[field.field_type]
-                fdata = None
 
                 # The length of the value byte slice is defined in the template
                 dataslice = data[offset:offset+flen]
@@ -210,7 +210,16 @@ class DataFlowSet:
                 for idx, byte in enumerate(reversed(bytearray(dataslice))):
                     fdata += byte << (idx * 8)
 
-                new_record.data[fkey] = fdata
+                # Special handling of IP addresses to convert integers to strings to not lose precision in dump
+                if fkey in ["IPV4_SRC_ADDR", "IPV4_DST_ADDR", "IPV6_SRC_ADDR", "IPV6_DST_ADDR"]:
+                    try:
+                        ip = ipaddress.ip_address(fdata)
+                    except ValueError:
+                        print("IP address could not be parsed: {}".format(fdata))
+                        continue
+                    new_record.data[fkey] = ip.compressed
+                else:
+                    new_record.data[fkey] = fdata
 
                 offset += flen
 

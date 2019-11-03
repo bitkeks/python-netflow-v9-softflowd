@@ -80,14 +80,9 @@ class Connection:
 
     @staticmethod
     def get_ips(flow):
-        # TODO: These values should be parsed into strings in the collection phase.
-        #       The floating point representation of an IPv6 address in JSON
-        #       could lose precision.
-
         # IPv4
-        if flow.get('IP_PROTOCOL_VERSION') == 4 \
-                or 'IPV4_SRC_ADDR' in flow \
-                or 'IPV4_DST_ADDR' in flow:
+        if flow.get('IP_PROTOCOL_VERSION') == 4 or \
+                'IPV4_SRC_ADDR' in flow or 'IPV4_DST_ADDR' in flow:
             return Pair(
                 ipaddress.ip_address(flow['IPV4_SRC_ADDR']),
                 ipaddress.ip_address(flow['IPV4_DST_ADDR'])
