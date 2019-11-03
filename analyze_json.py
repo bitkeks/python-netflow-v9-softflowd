@@ -13,16 +13,20 @@ from collections import namedtuple
 import contextlib
 from datetime import datetime
 import functools
+import gzip
 import ipaddress
 import json
+import logging
+import os.path
 import socket
 import sys
 
 
 Pair = namedtuple('Pair', ['src', 'dest'])
+logger = logging.getLogger(__name__)
 
 
-@functools.lru_cache(maxsize=128)
+@functools.lru_cache(maxsize=None)
 def resolve_hostname(ip):
     return socket.getfqdn(ip)
 
@@ -139,14 +143,38 @@ class Connection:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Output a basic analysis of NetFlow data")
-    parser.add_argument('filename', nargs='?', type=argparse.FileType('r'),
-                        default=sys.stdin,
+    parser.add_argument('-f', '--file', dest='file', type=str, default=sys.stdin,
                         help="The file to analyze (defaults to stdin if not provided)")
     args = parser.parse_args()
 
-    data = json.load(args.filename)
+    # Using a file and using stdin differ in their further usage for gzip.open
+    file = args.file
+    mode = "rb"  # reading files
+    if file != sys.stdin and not os.path.exists(file):
+        exit("File {} does not exist!".format(file))
 
-    # Go through data and disect every flow saved inside the dump
+    if file == sys.stdin:
+        file = sys.stdin.buffer
+        mode = "rt"  # reading from stdin
+
+    data = {}
+
+    with gzip.open(file, mode) as gzipped:
+        # "for line in" lazy-loads all lines in the file
+        for line in gzipped:
+            entry = json.loads(line)
+            if len(entry.keys()) != 1:
+                logger.warning("Line \"{}\" does not have exactly one timestamp key.")
+
+            try:
+                ts = list(entry)[0]  # timestamp from key
+            except KeyError:
+                logger.error("Saved line \"{}\" has no timestamp key!".format(line))
+                continue
+
+            data[ts] = entry[ts]
+
+    # Go through data and dissect every flow saved inside the dump
     for key in sorted(data):
         timestamp = datetime.fromtimestamp(float(key)).strftime("%Y-%m-%d %H:%M.%S")
 
@@ -157,7 +185,7 @@ if __name__ == "__main__":
                 pending = flow
                 continue
             con = Connection(pending, flow)
-            print("{timestamp}: {service:7} | {size:8} | {duration:9} | {src_host} ({src}) to {dest_host} ({dest})" \
+            print("{timestamp}: {service:<10} | {size:8} | {duration:9} | {src_host} ({src}) to {dest_host} ({dest})" \
                 .format(timestamp=timestamp, service=con.service.upper(), src_host=con.hostnames.src, src=con.src,
                         dest_host=con.hostnames.dest, dest=con.dest, size=con.human_size, duration=con.human_duration))
             pending = None

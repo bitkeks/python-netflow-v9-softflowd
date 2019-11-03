@@ -11,6 +11,7 @@ Licensed under MIT License. See LICENSE.
 import argparse
 from collections import namedtuple
 import queue
+import gzip
 import json
 import logging
 import sys
@@ -19,7 +20,6 @@ import threading
 import time
 
 from netflow import parse_packet, TemplateNotRecognized, UnknownNetFlowVersion
-
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ class NetFlowListener(threading.Thread):
                     else:
                         to_retry.append(pkt)
                         logger.debug("Failed to decode a v9 ExportPacket - will "
-                                      "re-attempt when a new template is discovered")
+                                     "re-attempt when a new template is discovered")
                     continue
 
                 logger.debug("Processed a v%d ExportPacket with %d flows.",
@@ -172,8 +172,8 @@ if __name__ == "__main__":
     parser.add_argument("--port", "-p", type=int, default=2055,
                         help="collector listener port")
     parser.add_argument("--file", "-o", type=str, dest="output_file",
-                        default="{}.json".format(int(time.time())),
-                        help="collector export JSON file")
+                        default="{}.gz".format(int(time.time())),
+                        help="collector export multiline JSON file")
     parser.add_argument("--debug", "-D", action="store_true",
                         help="Enable debug output")
     args = parser.parse_args()
@@ -183,19 +183,26 @@ if __name__ == "__main__":
     if args.debug:
         logger.setLevel(logging.DEBUG)
 
-    data = {}
     try:
-        # TODO: For a long-running processes, this will consume loads of memory
+        # With every parsed flow a new line is appended to the output file. In previous versions, this was implemented
+        # by storing the whole data dict in memory and dumping it regularly onto disk. This was extremely fragile, as
+        # it a) consumed a lot of memory and CPU (dropping packets since storing one flow took longer than the arrival
+        # of the next flow) and b) broke the exported JSON file, if the collector crashed during the write process,
+        # rendering all collected flows during the runtime of the collector useless (the file contained one large JSON
+        # dict which represented the 'data' dict).
+
+        # In this new approach, each received flow is parsed as usual, but it gets appended to a gzipped file each time.
+        # All in all, this improves in three aspects:
+        # 1. collected flow data is not stored in memory any more
+        # 2. received and parsed flows are persisted reliably
+        # 3. the disk usage of files with JSON and its full strings as keys is reduced by using gzipped files
+        # This also means that the files have to be handled differently, because they are gzipped and not formatted as
+        # one single big JSON dump, but rather many little JSON dumps, separated by line breaks.
         for ts, export in get_export_packets(args.host, args.port):
-            data[ts] = [flow.data for flow in export.flows]
+            entry = {ts: [flow.data for flow in export.flows]}
+            line = json.dumps(entry).encode() + b"\n"  # byte encoded line
+            with gzip.open(args.output_file, "ab") as fh:  # open as append, not reading the whole file
+                fh.write(line)
     except KeyboardInterrupt:
         logger.info("Received KeyboardInterrupt, passing through")
         pass
-
-    if data:
-        # TODO: this should be done periodically to not lose any data (only saved in memory)
-        logger.info("Outputting collected data to '%s'", args.output_file)
-        with open(args.output_file, 'w') as f:
-            json.dump(data, f)
-    else:
-        logger.info("No data collected")
