@@ -18,10 +18,10 @@ a collector at port 9000 in debug mode. Point your flow exporter to this port on
 your host and after some time the first ExportPackets should appear (the flows
 need to expire first).
 
-After you collected some data, `main.py` exports them into JSON files, simply
-named `<timestamp>.json`.
+After you collected some data, `main.py` exports them into GZIP files, simply
+named `<timestamp>.gz`.
 
-To analyze the saved traffic, run `analyze_json.py <json file>`. In my example
+To analyze the saved traffic, run `analyze_json.py -f <gzip file>`. In my example
 script this will look like the following, with resolved hostnames and services, transfered bytes and connection duration:
 
     2017-10-28 23:17.01: SSH     | 4.25M    | 15:27 min | localmachine-2 (<IPv4>) to localmachine-1 (<IPv4>)
@@ -55,4 +55,4 @@ To create the test packets try the following:
   5. Examine the captured traffic. Use Wireshark and set the `CFLOW` "decode as" dissector on the export packets (e.g. based on the port). The `data` fields should then be shown correctly as Netflow payload.
   6. Extract this payload as hex stream. Anonymize the IP addresses with a hex editor if necessary. A recommended hex editor is [bless](https://github.com/afrantzis/bless).
 
-The collector is run in a background thread. The difference in transmission speed from the exporting client can lead to different results, possibly caused by race conditions during the usage of the JSON output file.
+The collector is run in a background thread. The difference in transmission speed from the exporting client can lead to different results, possibly caused by race conditions during the usage of the GZIP output file.
