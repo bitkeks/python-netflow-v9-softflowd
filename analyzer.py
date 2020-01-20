@@ -26,6 +26,11 @@ Pair = namedtuple('Pair', ['src', 'dest'])
 logger = logging.getLogger(__name__)
 
 
+def printv(message, *args, **kwargs):
+    if args.verbose == True:
+        print(message.format(*args, **kwargs))
+
+
 @functools.lru_cache(maxsize=None)
 def resolve_hostname(ip):
     return socket.getfqdn(ip)
@@ -160,6 +165,8 @@ if __name__ == "__main__":
                         help="The file to analyze (defaults to stdin if not provided)")
     parser.add_argument('-p', '--packets', dest='packets_threshold', type=int, default=10,
                         help="Number of packets representing the lower bound in connections to be processed")
+    parser.add_argument('-v', '--verbose', dest="verbose", action="store_true",
+                        help="Enable verbose output.")
     args = parser.parse_args()
 
     # Using a file and using stdin differ in their further usage for gzip.open
@@ -197,6 +204,8 @@ if __name__ == "__main__":
     pending = {}
     skipped = 0
     skipped_threshold = args.packets_threshold
+
+    first_line = True  # print header line before first line
 
     for key in sorted(data):
         timestamp = datetime.fromtimestamp(float(key)).strftime("%Y-%m-%d %H:%M.%S")
@@ -236,13 +245,22 @@ if __name__ == "__main__":
                 skipped += 1
                 continue
 
-            print("{timestamp}: {service:<14} | {size:8} | {duration:9} | {packets:5} | Between {src_host} ({src}) and {dest_host} ({dest})" \
+            if first_line:
+                print("{:19} | {:14} | {:8} | {:9} | {:7} | Involved hosts".format("Timestamp", "Service", "Size", "Duration", "Packets"))
+                print("-" * 100)
+                first_line = False
+
+            print("{timestamp} | {service:<14} | {size:8} | {duration:9} | {packets:7} | Between {src_host} ({src}) and {dest_host} ({dest})" \
                   .format(timestamp=timestamp, service=con.service.upper(), src_host=con.hostnames.src, src=con.src,
                           dest_host=con.hostnames.dest, dest=con.dest, size=con.human_size, duration=con.human_duration,
                           packets=con.total_packets))
 
     if skipped > 0:
-        print(f"{skipped} connections skipped, because they had less than {skipped_threshold} packets.")
+        print(f"{skipped} connections skipped, because they had less than {skipped_threshold} packets (this value can be set with the -p flag).")
+
+    if not args.verbose:
+        # Exit here if no debugging session was wanted
+        exit(0)
 
     if len(pending) > 0:
         print(f"There are {len(pending)} first_switched entries left in the pending dict!")
