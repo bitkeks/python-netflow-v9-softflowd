@@ -6,7 +6,7 @@ test packets (defined below as hex streams) were extracted from a "real"
 softflowd export based on a sample PCAP capture file. They consist of one
 export with the templates and three without.
 
-Copyright 2017-2019 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2017-2020 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 
