@@ -15,6 +15,7 @@ import gzip
 import json
 import logging
 import sys
+import socket
 import socketserver
 import threading
 import time
@@ -44,6 +45,11 @@ class QueuingUDPListener(socketserver.ThreadingUDPServer):
     """
     def __init__(self, interface, queue):
         self.queue = queue
+
+        # If IPv6 interface addresses are used, override the default AF_INET family
+        if ":" in interface[0]:
+            self.address_family = socket.AF_INET6
+
         super().__init__(interface, QueuingRequestHandler)
 
 
