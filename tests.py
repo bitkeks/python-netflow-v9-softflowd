@@ -95,12 +95,12 @@ class TestSoftFlowExport(unittest.TestCase):
         # check number of "things" in the packets (flows + templates)
         # template packet = 10 things
         # other packets = 12 things
-        self.assertEqual(sum(p[1].header.count for p in pkts), (num-1)*12 + 10)
+        self.assertEqual(sum(p[2].header.count for p in pkts), (num-1)*12 + 10)
 
         # check number of flows in the packets
         # template packet = 8 flows (2 templates)
         # other packets = 12 flows
-        self.assertEqual(sum(len(p[1].flows) for p in pkts), (num-1)*12 + 8)
+        self.assertEqual(sum(len(p[2].flows) for p in pkts), (num-1)*12 + 8)
 
     def test_recv_all_packets_template_first(self):
         """Test all packets are received when the template is sent first"""
@@ -130,7 +130,7 @@ class TestSoftFlowExport(unittest.TestCase):
     def test_analyzer(self):
         """Test thar the analyzer doesn't break and outputs the correct number of lines"""
         pkts, _, _ = send_recv_packets([TEMPLATE_PACKET, *PACKETS])
-        data = {p[0]: [f.data for f in p[1].flows] for p in pkts}
+        data = {p[0]: [f.data for f in p[2].flows] for p in pkts}
         analyzer = subprocess.run(
             [sys.executable, 'analyzer.py'],
             input=json.dumps(data),
