@@ -21,6 +21,10 @@ __all__ = ["V9DataFlowSet", "V9DataRecord", "V9ExportPacket", "V9Header", "V9Tem
            "V9TemplateFlowSet", "V9TemplateNotRecognized", "V9TemplateRecord",
            "V9OptionsTemplateFlowSet", "V9OptionsTemplateRecord", "V9OptionsDataRecord"]
 
+
+FIELD_TYPES_CONTAINING_IP = [8, 12, 27, 28]
+
+
 V9_FIELD_TYPES = {
     0: 'UNKNOWN_FIELD_TYPE',  # fallback for unknown field types
 
@@ -221,7 +225,7 @@ class V9DataFlowSet:
 
                 # Special handling of IP addresses to convert integers to strings to not lose precision in dump
                 # TODO: might only be needed for IPv6
-                if fkey in ["IPV4_SRC_ADDR", "IPV4_DST_ADDR", "IPV6_SRC_ADDR", "IPV6_DST_ADDR"]:
+                if field.field_type in FIELD_TYPES_CONTAINING_IP:
                     try:
                         ip = ipaddress.ip_address(fdata)
                     except ValueError:
