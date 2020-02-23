@@ -212,15 +212,14 @@ class V9DataFlowSet:
             new_record = V9DataRecord()
 
             for field in template.fields:
+                # The length of the value byte slice is defined in the template
                 flen = field.field_length
                 fkey = V9_FIELD_TYPES[field.field_type]
-
-                # The length of the value byte slice is defined in the template
-                dataslice = data[offset:offset + flen]
 
                 # Special handling of IP addresses to convert integers to strings to not lose precision in dump
                 # TODO: might only be needed for IPv6
                 if field.field_type in FIELD_TYPES_CONTAINING_IP:
+                    dataslice = data[offset:offset+flen]
                     try:
                         ip = ipaddress.ip_address(dataslice)
                     except ValueError:
@@ -230,12 +229,13 @@ class V9DataFlowSet:
                 else:
                     # For performance reasons, we use struct.unpack for known lengths:
                     if flen == 4:
-                        new_record.data[fkey], = struct.unpack('!L', dataslice)
+                        new_record.data[fkey], = struct.unpack_from('!L', data, offset)
                     elif flen == 2:
-                        new_record.data[fkey], = struct.unpack('!H', dataslice)
+                        new_record.data[fkey], = struct.unpack_from('!H', data, offset)
                     elif flen == 1:
-                        new_record.data[fkey], = struct.unpack('!B', dataslice)
+                        new_record.data[fkey], = struct.unpack_from('!B', data, offset)
                     else:
+                        dataslice = data[offset:offset+flen]
                         # Caveat: this code assumes little-endian system (like x86)
                         fdata = 0
                         for idx, byte in enumerate(reversed(bytearray(dataslice))):
