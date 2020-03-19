@@ -23,6 +23,11 @@ import time
 from netflow import parse_packet, TemplateNotRecognized, UnknownNetFlowVersion
 
 logger = logging.getLogger(__name__)
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
 
 # Amount of time to wait before dropping an undecodable ExportPacket
 PACKET_TIMEOUT = 60 * 60
@@ -184,10 +189,9 @@ if __name__ == "__main__":
                         help="Enable debug output")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
-
     if args.debug:
         logger.setLevel(logging.DEBUG)
+        ch.setLevel(logging.DEBUG)
 
     try:
         # With every parsed flow a new line is appended to the output file. In previous versions, this was implemented
