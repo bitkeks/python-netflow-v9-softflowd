@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 PACKET_TIMEOUT = 60 * 60
 
 RawPacket = namedtuple('RawPacket', ['ts', 'client', 'data'])
+ParsedPacket = namedtuple('ParsedPacket', ['ts', 'client', 'export'])
 
 
 class QueuingRequestHandler(socketserver.BaseRequestHandler):
@@ -143,7 +144,7 @@ class NetFlowListener(threading.Thread):
                         self.input.put(p)
                     to_retry.clear()
 
-                self.output.put((pkt.ts, pkt.client, export))
+                self.output.put(ParsedPacket(pkt.ts, pkt.client, export))
         finally:
             self.server.shutdown()
             self.server.server_close()
