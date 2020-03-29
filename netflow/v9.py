@@ -165,7 +165,6 @@ class V9DataRecord:
     variable in NetFlow V9, so to work with the data you have to analyze the
     data dict keys (which are integers and can be mapped with the FIELD_TYPES
     dict).
-
     Should hold a 'data' dict with keys=field_type (integer) and value (in bytes).
     """
     def __init__(self):
@@ -233,7 +232,8 @@ class V9DataFlowSet:
 
 
 class V9TemplateField:
-    """A field with type identifier and length."""
+    """A field with type identifier and length.
+    """
     def __init__(self, field_type, field_length):
         self.field_type = field_type  # integer
         self.field_length = field_length  # bytes
@@ -244,7 +244,8 @@ class V9TemplateField:
 
 
 class V9TemplateRecord:
-    """A template record contained in a TemplateFlowSet."""
+    """A template record contained in a TemplateFlowSet.
+    """
     def __init__(self, template_id, field_count, fields):
         self.template_id = template_id
         self.field_count = field_count
@@ -301,12 +302,12 @@ class V9TemplateFlowSet:
 
 
 class V9Header:
-    """The header of the V9ExportPacket"""
+    """The header of the V9ExportPacket
+    """
     length = 20
 
     def __init__(self, data):
         pack = struct.unpack('!HHIIII', data[:self.length])
-
         self.version = pack[0]
         self.count = pack[1]  # not sure if correct. softflowd: no of flows
         self.uptime = pack[2]
@@ -314,20 +315,13 @@ class V9Header:
         self.sequence = pack[4]
         self.source_id = pack[5]
 
-    @property
-    def json(self):
-        return {
-            "version": self.version,
-            "count": self.count,
-            "uptime": self.uptime,
-            "timestamp": self.timestamp,
-            "sequence": self.sequence,
-            "source_id": self.source_id
-        }
+    def to_dict(self):
+        return self.__dict__
 
 
 class V9ExportPacket:
-    """The flow record holds the header and all template and data flowsets."""
+    """The flow record holds the header and all template and data flowsets.
+    """
     def __init__(self, data, templates):
         self.header = V9Header(data)
         self.templates = templates

@@ -57,6 +57,9 @@ class V1Header:
         self.timestamp = header[3]
         self.timestamp_nano = header[4]
 
+    def to_dict(self):
+        return self.__dict__
+
 
 class V1ExportPacket:
     """The flow record holds the header and data flowsets.

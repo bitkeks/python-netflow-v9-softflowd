@@ -85,7 +85,7 @@ class ThreadedNetFlowListener(threading.Thread):
     ...     print("Stopped!")
     """
 
-    def __init__(self, host, port):
+    def __init__(self, host: str, port: int):
         logger.info("Starting the NetFlow listener on {}:{}".format(host, port))
         self.output = queue.Queue()
         self.input = queue.Queue()
@@ -161,7 +161,7 @@ class ThreadedNetFlowListener(threading.Thread):
         super().join(timeout=timeout)
 
 
-def get_export_packets(host, port):
+def get_export_packets(host: str, port: int) -> ParsedPacket:
     """A threaded generator that will yield ExportPacket objects until it is killed
     """
     listener = ThreadedNetFlowListener(host, port)
@@ -213,7 +213,7 @@ if __name__ == "__main__":
         for ts, client, export in get_export_packets(args.host, args.port):
             entry = {ts: {
                 "client": client,
-                "header": export.header.json,
+                "header": export.header.to_dict(),
                 "flows": [flow.data for flow in export.flows]}
             }
             line = json.dumps(entry).encode() + b"\n"  # byte encoded line

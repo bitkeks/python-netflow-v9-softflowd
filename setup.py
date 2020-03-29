@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='netflow',
-    version='0.9.0',
+    version='0.9.1',
     description='NetFlow v1, v5, and v9 tool suite implemented in Python 3.',
     long_description=long_description,
     long_description_content_type='text/markdown',

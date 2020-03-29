@@ -62,6 +62,9 @@ class V5Header:
         self.engine_id = header[7]
         self.sampling_interval = header[8]
 
+    def to_dict(self):
+        return self.__dict__
+
 
 class V5ExportPacket:
     """The flow record holds the header and data flowsets.
