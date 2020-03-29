@@ -5,18 +5,15 @@ Netflow V5 collector and parser implementation in Python 3.
 Created purely for fun. Not battled tested nor will it be.
 
 Reference: https://www.cisco.com/c/en/us/td/docs/net_mgmt/netflow_collection_engine/3-6/user/guide/format.html
-
-This script is specifically implemented in combination with softflowd.
-See https://github.com/djmdjm/softflowd
-
+This script is specifically implemented in combination with softflowd. See https://github.com/djmdjm/softflowd
 """
 
 import struct
 
 
-class DataFlow:
-    """Holds one v5 DataRecord"""
-
+class V5DataFlow:
+    """Holds one v5 DataRecord
+    """
     length = 48
 
     def __init__(self, data):
@@ -46,9 +43,9 @@ class DataFlow:
         return "<DataRecord with data {}>".format(self.data)
 
 
-class Header:
-    """The header of the V5ExportPacket"""
-
+class V5Header:
+    """The header of the V5ExportPacket
+    """
     length = 24
 
     def __init__(self, data):
@@ -65,15 +62,15 @@ class Header:
 
 
 class V5ExportPacket:
-    """The flow record holds the header and data flowsets."""
-
+    """The flow record holds the header and data flowsets.
+    """
     def __init__(self, data):
         self.flows = []
-        self.header = Header(data)
+        self.header = V5Header(data)
 
         offset = self.header.length
         for flow_count in range(0, self.header.count):
-            flow = DataFlow(data[offset:])
+            flow = V5DataFlow(data[offset:])
             self.flows.append(flow)
             offset += flow.length
 

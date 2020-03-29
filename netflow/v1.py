@@ -14,9 +14,9 @@ See https://github.com/djmdjm/softflowd
 import struct
 
 
-class DataFlow:
-    """Holds one v1 DataRecord"""
-
+class V1DataFlow:
+    """Holds one v1 DataRecord
+    """
     length = 48
 
     def __init__(self, data):
@@ -42,9 +42,9 @@ class DataFlow:
         return "<DataRecord with data {}>".format(self.data)
 
 
-class Header:
-    """The header of the V1ExportPacket"""
-
+class V1Header:
+    """The header of the V1ExportPacket
+    """
     length = 16
 
     def __init__(self, data):
@@ -57,11 +57,12 @@ class Header:
 
 
 class V1ExportPacket:
-    """The flow record holds the header and data flowsets."""
+    """The flow record holds the header and data flowsets.
+    """
 
     def __init__(self, data):
         self.flows = []
-        self.header = Header(data)
+        self.header = V1Header(data)
 
         offset = self.header.length
         for flow_count in range(0, self.header.count):

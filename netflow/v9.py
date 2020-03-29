@@ -158,7 +158,7 @@ class TemplateNotRecognized(KeyError):
     pass
 
 
-class DataRecord:
+class V9DataRecord:
     """This is a 'flow' as we want it from our source. What it contains is
     variable in NetFlow V9, so to work with the data you have to analyze the
     data dict keys (which are integers and can be mapped with the FIELD_TYPES
@@ -173,7 +173,7 @@ class DataRecord:
         return "<DataRecord with data: {}>".format(self.data)
 
 
-class DataFlowSet:
+class V9DataFlowSet:
     """Holds one or multiple DataRecord which are all defined after the same
     template. This template is referenced in the field 'flowset_id' of this
     DataFlowSet and must not be zero.
@@ -196,7 +196,7 @@ class DataFlowSet:
         padding_size = 4 - (self.length % 4)  # 4 Byte
 
         while offset <= (self.length - padding_size):
-            new_record = DataRecord()
+            new_record = V9DataRecord()
 
             for field in template.fields:
                 flen = field.field_length
@@ -230,7 +230,7 @@ class DataFlowSet:
             .format(self.template_id, self.length, len(self.flows))
 
 
-class TemplateField:
+class V9TemplateField:
     """A field with type identifier and length."""
     def __init__(self, field_type, field_length):
         self.field_type = field_type  # integer
@@ -241,7 +241,7 @@ class TemplateField:
             self.field_type, FIELD_TYPES[self.field_type], self.field_length)
 
 
-class TemplateRecord:
+class V9TemplateRecord:
     """A template record contained in a TemplateFlowSet."""
     def __init__(self, template_id, field_count, fields):
         self.template_id = template_id
@@ -254,7 +254,7 @@ class TemplateRecord:
             ' '.join([FIELD_TYPES[field.field_type] for field in self.fields]))
 
 
-class TemplateFlowSet:
+class V9TemplateFlowSet:
     """A template flowset, which holds an id that is used by data flowsets to
     reference back to the template. The template then has fields which hold
     identifiers of data types (eg "IP_SRC_ADDR", "PKTS"..). This way the flow
@@ -281,11 +281,11 @@ class TemplateFlowSet:
                 field_type, field_length = struct.unpack('!HH', data[offset:offset+4])
                 if field_type not in FIELD_TYPES:
                     field_type = 0  # Set field_type to UNKNOWN_FIELD_TYPE as fallback
-                field = TemplateField(field_type, field_length)
+                field = V9TemplateField(field_type, field_length)
                 fields.append(field)
 
             # Create a template object with all collected data
-            template = TemplateRecord(template_id, field_count, fields)
+            template = V9TemplateRecord(template_id, field_count, fields)
 
             # Append the new template to the global templates list
             self.templates[template.template_id] = template
@@ -298,7 +298,7 @@ class TemplateFlowSet:
             .format(self.flowset_id, self.length, self.templates.keys())
 
 
-class Header:
+class V9Header:
     """The header of the V9ExportPacket"""
     length = 20
 
@@ -326,9 +326,8 @@ class Header:
 
 class V9ExportPacket:
     """The flow record holds the header and all template and data flowsets."""
-
     def __init__(self, data, templates):
-        self.header = Header(data)
+        self.header = V9Header(data)
         self.templates = templates
         self._new_templates = False
         self.flows = []
@@ -337,7 +336,7 @@ class V9ExportPacket:
         while offset != len(data):
             flowset_id = struct.unpack('!H', data[offset:offset+2])[0]
             if flowset_id == 0:  # TemplateFlowSet always have id 0
-                tfs = TemplateFlowSet(data[offset:])
+                tfs = V9TemplateFlowSet(data[offset:])
                 # Check for any new/changed templates
                 if not self._new_templates:
                     for id_, template in tfs.templates.items():
@@ -347,7 +346,7 @@ class V9ExportPacket:
                 self.templates.update(tfs.templates)
                 offset += tfs.length
             else:
-                dfs = DataFlowSet(data[offset:], self.templates)
+                dfs = V9DataFlowSet(data[offset:], self.templates)
                 self.flows += dfs.flows
                 offset += dfs.length
 
