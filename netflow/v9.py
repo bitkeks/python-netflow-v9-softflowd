@@ -16,8 +16,10 @@ Licensed under MIT License. See LICENSE.
 import ipaddress
 import struct
 
+__all__ = ["V9DataFlowSet", "V9DataRecord", "V9ExportPacket", "V9Header", "V9TemplateField",
+           "V9TemplateFlowSet", "V9TemplateNotRecognized", "V9TemplateRecord"]
 
-FIELD_TYPES = {
+V9_FIELD_TYPES = {
     0: 'UNKNOWN_FIELD_TYPE',  # fallback for unknown field types
 
     # Cisco specs for NetFlow v9
@@ -154,7 +156,7 @@ FIELD_TYPES = {
 }
 
 
-class TemplateNotRecognized(KeyError):
+class V9TemplateNotRecognized(KeyError):
     pass
 
 
@@ -188,7 +190,7 @@ class V9DataFlowSet:
         offset = 4
 
         if self.template_id not in templates:
-            raise TemplateNotRecognized
+            raise V9TemplateNotRecognized
 
         template = templates[self.template_id]
 
@@ -200,7 +202,7 @@ class V9DataFlowSet:
 
             for field in template.fields:
                 flen = field.field_length
-                fkey = FIELD_TYPES[field.field_type]
+                fkey = V9_FIELD_TYPES[field.field_type]
 
                 # The length of the value byte slice is defined in the template
                 dataslice = data[offset:offset+flen]
@@ -238,7 +240,7 @@ class V9TemplateField:
 
     def __repr__(self):
         return "<TemplateField type {}:{}, length {}>".format(
-            self.field_type, FIELD_TYPES[self.field_type], self.field_length)
+            self.field_type, V9_FIELD_TYPES[self.field_type], self.field_length)
 
 
 class V9TemplateRecord:
@@ -251,7 +253,7 @@ class V9TemplateRecord:
     def __repr__(self):
         return "<TemplateRecord {} with {} fields: {}>".format(
             self.template_id, self.field_count,
-            ' '.join([FIELD_TYPES[field.field_type] for field in self.fields]))
+            ' '.join([V9_FIELD_TYPES[field.field_type] for field in self.fields]))
 
 
 class V9TemplateFlowSet:
@@ -279,7 +281,7 @@ class V9TemplateFlowSet:
                 # Get all fields of this template
                 offset += 4
                 field_type, field_length = struct.unpack('!HH', data[offset:offset+4])
-                if field_type not in FIELD_TYPES:
+                if field_type not in V9_FIELD_TYPES:
                     field_type = 0  # Set field_type to UNKNOWN_FIELD_TYPE as fallback
                 field = V9TemplateField(field_type, field_length)
                 fields.append(field)

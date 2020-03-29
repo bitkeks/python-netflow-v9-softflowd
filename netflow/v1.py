@@ -13,6 +13,8 @@ See https://github.com/djmdjm/softflowd
 
 import struct
 
+__all__ = ["V1DataFlow", "V1ExportPacket", "V1Header"]
+
 
 class V1DataFlow:
     """Holds one v1 DataRecord

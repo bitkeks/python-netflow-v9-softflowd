@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """
 Example collector script for NetFlow v1, v5, and v9.
 This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
@@ -7,40 +5,38 @@ This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 Copyright 2017-2020 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
-
 import argparse
-from collections import namedtuple
-import queue
 import gzip
 import json
+from collections import namedtuple
+import queue
 import logging
-import sys
 import socket
 import socketserver
 import threading
 import time
 
-from netflow import parse_packet, TemplateNotRecognized, UnknownNetFlowVersion
+from .utils import UnknownNetFlowVersion, parse_packet
+from .v9 import V9TemplateNotRecognized
 
-logger = logging.getLogger(__name__)
+RawPacket = namedtuple('RawPacket', ['ts', 'client', 'data'])
+ParsedPacket = namedtuple('ParsedPacket', ['ts', 'client', 'export'])
+
+# Amount of time to wait before dropping an undecodable ExportPacket
+PACKET_TIMEOUT = 60 * 60
+
+logger = logging.getLogger("netflow-collector")
 ch = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
-# Amount of time to wait before dropping an undecodable ExportPacket
-PACKET_TIMEOUT = 60 * 60
-
-RawPacket = namedtuple('RawPacket', ['ts', 'client', 'data'])
-ParsedPacket = namedtuple('ParsedPacket', ['ts', 'client', 'export'])
-
-
 class QueuingRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
         data = self.request[0]  # get content, [1] would be the socket
         self.server.queue.put(RawPacket(time.time(), self.client_address, data))
-        logger.debug(
+        logging.debug(
             "Received %d bytes of data from %s", len(data), self.client_address
         )
 
@@ -59,7 +55,7 @@ class QueuingUDPListener(socketserver.ThreadingUDPServer):
         super().__init__(interface, QueuingRequestHandler)
 
 
-class NetFlowListener(threading.Thread):
+class ThreadedNetFlowListener(threading.Thread):
     """A thread that listens for incoming NetFlow packets, processes them, and
     makes them available to consumers.
 
@@ -70,7 +66,7 @@ class NetFlowListener(threading.Thread):
     - When joined, will wait for the listener to exit
 
     For example, a simple script that outputs data until killed with CTRL+C:
-    >>> listener = NetFlowListener('0.0.0.0', 2055)
+    >>> listener = ThreadedNetFlowListener('0.0.0.0', 2055)
     >>> print("Listening for NetFlow packets")
     >>> listener.start() # start processing packets
     >>> try:
@@ -127,7 +123,7 @@ class NetFlowListener(threading.Thread):
                 except UnknownNetFlowVersion as e:
                     logger.error("%s, ignoring the packet", e)
                     continue
-                except TemplateNotRecognized:
+                except V9TemplateNotRecognized:
                     if time.time() - pkt.ts > PACKET_TIMEOUT:
                         logger.warning("Dropping an old and undecodable v9 ExportPacket")
                     else:
@@ -164,9 +160,9 @@ class NetFlowListener(threading.Thread):
 
 
 def get_export_packets(host, port):
-    """A generator that will yield ExportPacket objects until it is killed"""
-
-    listener = NetFlowListener(host, port)
+    """A threaded generator that will yield ExportPacket objects until it is killed
+    """
+    listener = ThreadedNetFlowListener(host, port)
     listener.start()
     try:
         while True:
@@ -175,6 +171,10 @@ def get_export_packets(host, port):
         listener.stop()
         listener.join()
 
+
+if __name__ == "netflow.collector":
+    logger.error("The collector is currently meant to be used as a CLI tool only.")
+    logger.error("Use 'python3 -m netflow.collector -h' in your console for additional help.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A sample netflow collector.")

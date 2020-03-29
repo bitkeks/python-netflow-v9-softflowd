@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 """
-Example analyzing script for saved exports (by main.py, as JSON).
 This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 
 Copyright 2017-2020 Dominik Pataky <dev@bitkeks.eu>
@@ -30,7 +29,12 @@ IP_PROTOCOLS = {
 }
 
 Pair = namedtuple('Pair', ['src', 'dest'])
+
 logger = logging.getLogger(__name__)
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 
 def printv(message, *args_, **kwargs):
@@ -177,6 +181,10 @@ class Connection:
         return self.src_flow["IN_PKTS"] + self.dest_flow["IN_PKTS"]
 
 
+if __name__ == "netflow.analyzer":
+    logger.error("The analyzer is currently meant to be used as a CLI tool only.")
+    logger.error("Use 'python3 -m netflow.analyzer -h' in your console for additional help.")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Output a basic analysis of NetFlow data")
     parser.add_argument("-f", "--file", dest="file", type=str, default=sys.stdin,
@@ -187,7 +195,8 @@ if __name__ == "__main__":
                         help="Enable verbose output.")
     parser.add_argument("--match-host", dest="match_host", type=str, default=None,
                         help="Filter output by matching on the given host (matches source or destination)")
-    parser.add_argument("-n", "--no-dns", dest="no_dns", action="store_true", help="Disable DNS resolving of IP addresses")
+    parser.add_argument("-n", "--no-dns", dest="no_dns", action="store_true",
+                        help="Disable DNS resolving of IP addresses")
     args = parser.parse_args()
 
     # Sanity check for IP address
@@ -214,7 +223,7 @@ if __name__ == "__main__":
         for line in gzipped:
             entry = json.loads(line)
             if len(entry.keys()) != 1:
-                logger.warning("Line \"{}\" does not have exactly one timestamp key.")
+                logger.warning("The line does not have exactly one timestamp key: \"{}\"".format(line.keys()))
 
             try:
                 ts = list(entry)[0]  # timestamp from key

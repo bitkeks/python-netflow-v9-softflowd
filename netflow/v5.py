@@ -10,6 +10,8 @@ This script is specifically implemented in combination with softflowd. See https
 
 import struct
 
+__all__ = ["V5DataFlow", "V5ExportPacket", "V5Header"]
+
 
 class V5DataFlow:
     """Holds one v5 DataRecord
