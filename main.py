@@ -211,6 +211,7 @@ if __name__ == "__main__":
         for ts, client, export in get_export_packets(args.host, args.port):
             entry = {ts: {
                 "client": client,
+                "header": export.header.json,
                 "flows": [flow.data for flow in export.flows]}
             }
             line = json.dumps(entry).encode() + b"\n"  # byte encoded line

@@ -300,7 +300,6 @@ class TemplateFlowSet:
 
 class Header:
     """The header of the V9ExportPacket"""
-
     length = 20
 
     def __init__(self, data):
@@ -312,6 +311,17 @@ class Header:
         self.timestamp = pack[3]
         self.sequence = pack[4]
         self.source_id = pack[5]
+
+    @property
+    def json(self):
+        return {
+            "version": self.version,
+            "count": self.count,
+            "uptime": self.uptime,
+            "timestamp": self.timestamp,
+            "sequence": self.sequence,
+            "source_id": self.source_id
+        }
 
 
 class V9ExportPacket:
