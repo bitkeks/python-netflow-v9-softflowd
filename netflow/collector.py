@@ -1,5 +1,7 @@
+#!/usr/bin/env python3
+
 """
-Example collector script for NetFlow v1, v5, and v9.
+Reference collector script for NetFlow v1, v5, and v9 Python package.
 This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 
 Copyright 2017-2020 Dominik Pataky <dev@bitkeks.eu>

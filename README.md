@@ -1,7 +1,7 @@
 # Python NetFlow library
-This package contains libraries for **NetFlow versions 1, 5 and 9**. Use the additional scripts in the repo to collect and parse incoming UDP NetFlow packets.
+This package contains libraries and tools for **NetFlow versions 1, 5 and 9**.
 
-Version 9 is the first NetFlow version using templates. Templates make dynamically sized and configured NetFlow data flowsets possible, which makes the collector's job harder.
+Version 9 is the first NetFlow version using templates. Templates make dynamically sized and configured NetFlow data flowsets possible, which makes the collector's job harder. By importing `netflow.v1`, `netflow.v5` or `netflow.v9` you have direct access to the respective parsing objects, but at the beginning you probably will have more success by running the reference collector.
 
 Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
 
@@ -9,19 +9,12 @@ Licensed under MIT License. See LICENSE.
 
 
 ## Using the collector and analyzer
-In this repo you also find `main.py` and `analyzer.py`.
+Since v0.9.0 the `netflow` library also includes reference implementations of a collector and an analyzer as CLI tools.
+These can be used on the CLI with `python3 -m netflow.collector` and `python3 -m netflow.analyzer`. Use the `-h` flag to receive the respective help output with all provided CLI flags.
 
-To start an example collector run `python3 main.py -p 9000 -D`. This will run
-a collector at port 9000 in debug mode. Point your flow exporter to this port on
-your host and after some time the first ExportPackets should appear (the flows
-need to expire first).
+Example: to start the collector run `python3 -m netflow.collector -p 9000 -D`. This will start a collector instance at port 9000 in debug mode. Point your flow exporter to this port on your host and after some time the first ExportPackets should appear (the flows need to expire first). After you collected some data, the collector exports them into GZIP files, simply named `<timestamp>.gz` (or the filename you specified with `--file`/`-o`).
 
-After you collected some data, `main.py` exports them into GZIP files, simply
-named `<timestamp>.gz`.
-
-To analyze the saved traffic, run `analyzer.py -f <gzip file>`. In my example
-script this will look like the following, with resolved hostnames and services,
-transfered bytes and connection duration:
+To analyze the saved traffic, run `python3 -m netflow.analyzer -f <gzip file>`. The output will look similar to the following snippet, with resolved hostnames and services, transferred bytes and connection duration:
 
     2017-10-28 23:17.01: SSH     | 4.25M    | 15:27 min | localmachine-2 (<IPv4>) to localmachine-1 (<IPv4>)
     2017-10-28 23:17.01: SSH     | 4.29M    | 16:22 min | remotemachine (<IPv4>) to localmachine-2 (<IPv4>)
@@ -30,9 +23,7 @@ transfered bytes and connection duration:
     2017-10-28 23:23.01: SSH     | 93.79M   | 21 sec    | remotemachine (<IPv4>) to localmachine-2 (<IPv4>)
     2017-10-28 23:51.01: SSH     | 14.08M   | 1:23.09 hours | remotemachine (<IPv4>) to localmachine-2 (<IPv4>)
 
-Feel free to customize the analyzing script, e.g. make it print some nice graphs or calculate broader statistics.
-
-**Please note that the analyzer is experimental and has some rough edges. Do not rely on it in monitoring use cases!**
+**Please note that the collector and analyzer are experimental reference implementations. Do not rely on them in production monitoring use cases!** In any case I recommend looking into the `netflow/collector.py` and `netflow/analyzer.py` scripts for customization. Feel free to use the code and extend it in your own tool set - that's what the MIT license is for!
 
 
 ## Resources
@@ -40,20 +31,29 @@ Feel free to customize the analyzing script, e.g. make it print some nice graphs
 * [RFC "Cisco Systems NetFlow Services Export Version 9"](https://tools.ietf.org/html/rfc3954)
 
 ## Development environment
-I have specifically written this script in combination with NetFlow exports from
-[softflowd](https://github.com/djmdjm/softflowd) v0.9.9 - it should work with every
-correct NetFlow v9 implementation though.
+The library was specifically written in combination with NetFlow exports from [softflowd](https://github.com/djmdjm/softflowd) v0.9.9 - it should work with every correct NetFlow v9 implementation though. If you stumble upon new custom template fields please let me know, they will make a fine addition to the `netflow.v9.V9_FIELD_TYPES` collection.
 
 ### Running and creating tests
-The file `tests.py` contains some tests based on real softflowd export packets.
-To create the test packets try the following:
+The test file contains some tests based on real softflowd export packets. During the development of this library, two ways of gathering these hex dumps were used. First, the tcpdump/Wireshark export way:
 
-  1. Run tcpdump/Wireshark on your interface
-  2. Produce some sample flows, e.g. surf the web and refresh your mail client.
-  3. Save the pcap file to disk.
-  4. Run tcpdump/Wireshark again on an interface.
-  4. Run softflowd with the `-r <pcap_file>` flag. softflowd reads the captured traffic, produces the flows and exports them. Use the interface you are capturing packets on to send the exports.
+  1. Run tcpdump/Wireshark on your public-facing interface (with tcpdump, save the pcap to disk).
+  2. Produce some sample flows, e.g. surf the web and refresh your mail client. With Wireshark, save the captured packets to disk.
+  4. Run tcpdump/Wireshark again on a local interface.
+  4. Run softflowd with the `-r <pcap_file>` flag. softflowd reads the captured traffic, produces the flows and exports them. Use the interface you are capturing packets on to send the exports to. E.g. capture on the localhost interface (with `-i lo` or on loopback) and then let softflowd export to `127.0.0.1:1337`.
   5. Examine the captured traffic. Use Wireshark and set the `CFLOW` "decode as" dissector on the export packets (e.g. based on the port). The `data` fields should then be shown correctly as Netflow payload.
   6. Extract this payload as hex stream. Anonymize the IP addresses with a hex editor if necessary. A recommended hex editor is [bless](https://github.com/afrantzis/bless).
+
+Second, a Docker way:
+
+  1. Run a Docker container, e.g. alpine Linux and install `softflowd` in it.
+  2. Run a softflowd daemon in the background inside the container, listening on `eth0` and exporting to e.g. `172.17.0.1:1337`.
+  3. On your host start Wireshark to listen on the Docker bridge.
+  4. Create some traffic from inside the container.
+  5. Check the softflow daemon with `softflowctl dump-flows`.
+  6. If you have some flows shown to you, export them with `softflowctl expire-all`.
+  7. Your Wireshark should have picked up the epxort packets (it does not matter if there's a port unreachable error).
+  8. Set the decoder for the packets to `CFLOW` and copy the hex value from the NetFlow packet.
+
+Your exported hex string should begin with `0001`, `0005` or `0009`, depending on the NetFlow version.
 
 The collector is run in a background thread. The difference in transmission speed from the exporting client can lead to different results, possibly caused by race conditions during the usage of the GZIP output file.
