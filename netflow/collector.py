@@ -121,6 +121,7 @@ class ThreadedNetFlowListener(threading.Thread):
                     continue
 
                 try:
+                    # templates is passed as reference, updated in V9ExportPacket
                     export = parse_packet(pkt.data, templates)
                 except UnknownNetFlowVersion as e:
                     logger.error("%s, ignoring the packet", e)
