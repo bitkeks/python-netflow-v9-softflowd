@@ -16,7 +16,7 @@ setup(
     url='https://github.com/bitkeks/python-netflow-v9-softflowd',
     packages=["netflow"],
     license='MIT',
-    python_requires='>=3',
+    python_requires='>=3.5',
     keywords='netflow collector parser',
     classifiers=[
         "Programming Language :: Python :: 3",

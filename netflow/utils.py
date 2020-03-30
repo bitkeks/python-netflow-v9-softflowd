@@ -29,7 +29,23 @@ def get_netflow_version(data):
     return struct.unpack('!H', data[:2])[0]
 
 
-def parse_packet(data, templates):
+def parse_packet(data, templates=None):
+    if templates is None:  # compatibility for v1 and v5
+        templates = {}
+
+    if type(data) == str:
+        # hex dump as string
+        data = bytes.fromhex(data)
+    elif type(data) == bytes:
+        # check representation based on utf-8 decoding result
+        try:
+            # hex dump as bytes, but not hex
+            dec = data.decode()
+            data = bytes.fromhex(dec)
+        except UnicodeDecodeError:
+            # use data as given, assuming hex-formatted bytes
+            pass
+
     version = get_netflow_version(data)
     if version == 1:
         return V1ExportPacket(data)
