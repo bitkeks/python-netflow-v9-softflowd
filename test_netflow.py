@@ -203,9 +203,10 @@ class TestFlowExport(unittest.TestCase):
         # Since it might vary which flow of the pair is epxorted first, check both
         flow = p.export.flows[0]
         self.assertIn(
-            ipaddress.ip_address(flow.data["IPV4_SRC_ADDR"]),  # convert to ipaddress obj because value is int
+            ipaddress.ip_address(flow.IPV4_SRC_ADDR),  # convert to ipaddress obj because value is int
             [ipaddress.ip_address("172.17.0.1"), ipaddress.ip_address("172.17.0.2")]
         )
+        self.assertEqual(flow.PROTO, 1)  # ICMP
 
     def test_recv_v5_packet(self):
         """Test NetFlow v5 packet parsing"""
@@ -222,9 +223,10 @@ class TestFlowExport(unittest.TestCase):
         # Since it might vary which flow of the pair is epxorted first, check both
         flow = p.export.flows[0]
         self.assertIn(
-            ipaddress.ip_address(flow.data["IPV4_SRC_ADDR"]),  # convert to ipaddress obj because value is int
+            ipaddress.ip_address(flow.IPV4_SRC_ADDR),  # convert to ipaddress obj because value is int
             [ipaddress.ip_address("172.17.0.1"), ipaddress.ip_address("172.17.0.2")]  # matches multicast packet too
         )
+        self.assertEqual(flow.PROTO, 1)  # ICMP
 
     def test_recv_v9_packet(self):
         """Test NetFlow v9 packet parsing"""
@@ -241,11 +243,22 @@ class TestFlowExport(unittest.TestCase):
         self.assertEqual(len(p.export.flows), 8)  # count flows
         self.assertEqual(len(p.export.templates), 2)  # count new templates
 
+        # Inspect contents of specific flows
+        flow = p.export.flows[0]
+        self.assertEqual(flow.PROTOCOL, 6)  # TCP
+        self.assertEqual(flow.L4_SRC_PORT, 80)
+        self.assertEqual(flow.IPV4_SRC_ADDR, "127.0.0.1")
+
+        flow = p.export.flows[-1]  # last flow
+        self.assertEqual(flow.PROTOCOL, 17)  # UDP
+        self.assertEqual(flow.L4_DST_PORT, 53)
+
         # send template and multiple export packets
         pkts, _, _ = send_recv_packets([PACKET_V9_TEMPLATE, *PACKETS_V9])
         self.assertEqual(len(pkts), 4)
         self.assertEqual(pkts[0].export.header.version, 9)
 
+        # check amount of flows across all packets
         total_flows = 0
         for packet in pkts:
             total_flows += len(packet.export.flows)

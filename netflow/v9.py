@@ -2,12 +2,11 @@
 
 """
 Netflow V9 collector and parser implementation in Python 3.
+This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 Created for learning purposes and unsatisfying alternatives.
 
 Reference: https://www.cisco.com/en/US/technologies/tk648/tk362/technologies_white_paper09186a00800a3db9.html
-
-This script is specifically implemented in combination with softflowd.
-See https://github.com/djmdjm/softflowd
+This script is specifically implemented in combination with softflowd. See https://github.com/djmdjm/softflowd
 
 Copyright 2017, 2018 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
@@ -212,6 +211,7 @@ class V9DataFlowSet:
                     fdata += byte << (idx * 8)
 
                 # Special handling of IP addresses to convert integers to strings to not lose precision in dump
+                # TODO: might only be needed for IPv6
                 if fkey in ["IPV4_SRC_ADDR", "IPV4_DST_ADDR", "IPV6_SRC_ADDR", "IPV6_DST_ADDR"]:
                     try:
                         ip = ipaddress.ip_address(fdata)
@@ -224,6 +224,7 @@ class V9DataFlowSet:
 
                 offset += flen
 
+            new_record.__dict__.update(new_record.data)
             self.flows.append(new_record)
 
     def __repr__(self):
