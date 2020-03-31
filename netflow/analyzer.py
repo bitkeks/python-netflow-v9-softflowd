@@ -4,7 +4,7 @@
 Reference analyzer script for NetFlow Python package.
 This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 
-Copyright 2017-2020 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 

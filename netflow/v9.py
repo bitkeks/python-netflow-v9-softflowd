@@ -8,7 +8,7 @@ Created for learning purposes and unsatisfying alternatives.
 Reference: https://www.cisco.com/en/US/technologies/tk648/tk362/technologies_white_paper09186a00800a3db9.html
 This script is specifically implemented in combination with softflowd. See https://github.com/djmdjm/softflowd
 
-Copyright 2017, 2018 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 

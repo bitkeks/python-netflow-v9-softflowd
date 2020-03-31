@@ -5,7 +5,7 @@ This file contains tests for the NetFlow collector for versions 1, 5 and 9.
 The test packets (defined below as hex streams) were extracted from "real"
 softflowd exports based on a sample PCAP capture file.
 
-Copyright 2017-2020 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 import gzip

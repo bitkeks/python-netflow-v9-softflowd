@@ -4,7 +4,7 @@
 Reference collector script for NetFlow v1, v5, and v9 Python package.
 This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 
-Copyright 2017-2020 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 import argparse
@@ -38,7 +38,7 @@ class QueuingRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
         data = self.request[0]  # get content, [1] would be the socket
         self.server.queue.put(RawPacket(time.time(), self.client_address, data))
-        logging.debug(
+        logger.debug(
             "Received %d bytes of data from %s", len(data), self.client_address
         )
 
