@@ -15,7 +15,7 @@ from .v9 import V9ExportPacket
 from .ipfix import IPFIXExportPacket
 
 
-class UnknownNetFlowVersion(Exception):
+class UnknownExportVersion(Exception):
     def __init__(self, data, version):
         self.data = data
         self.version = version
@@ -26,7 +26,7 @@ class UnknownNetFlowVersion(Exception):
         )
 
 
-def get_netflow_version(data):
+def get_export_version(data):
     return struct.unpack('!H', data[:2])[0]
 
 
@@ -47,13 +47,13 @@ def parse_packet(data, templates=None):
             # use data as given, assuming hex-formatted bytes
             pass
 
-    version = get_netflow_version(data)
+    version = get_export_version(data)
     if version == 1:
         return V1ExportPacket(data)
     elif version == 5:
         return V5ExportPacket(data)
     elif version == 9:
-        return V9ExportPacket(data, templates)
+        return V9ExportPacket(data, templates["netflow"])
     elif version == 10:
-        return IPFIXExportPacket(data, templates)
-    raise UnknownNetFlowVersion(data, version)
+        return IPFIXExportPacket(data, templates["ipfix"])
+    raise UnknownExportVersion(data, version)

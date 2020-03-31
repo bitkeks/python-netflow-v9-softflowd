@@ -18,8 +18,9 @@ import socketserver
 import threading
 import time
 
-from .utils import UnknownNetFlowVersion, parse_packet
+from .utils import UnknownExportVersion, parse_packet
 from .v9 import V9TemplateNotRecognized
+from .ipfix import IPFIXTemplateNotRecognized
 
 RawPacket = namedtuple('RawPacket', ['ts', 'client', 'data'])
 ParsedPacket = namedtuple('ParsedPacket', ['ts', 'client', 'export'])
@@ -112,7 +113,7 @@ class ThreadedNetFlowListener(threading.Thread):
     def run(self):
         # Process packets from the queue
         try:
-            templates = {}
+            templates = {"netflow": {}, "ipfix": {}}
             to_retry = []
             while not self._shutdown.is_set():
                 try:
@@ -124,31 +125,30 @@ class ThreadedNetFlowListener(threading.Thread):
                 try:
                     # templates is passed as reference, updated in V9ExportPacket
                     export = parse_packet(pkt.data, templates)
-                except UnknownNetFlowVersion as e:
+                except UnknownExportVersion as e:
                     logger.error("%s, ignoring the packet", e)
                     continue
-                except V9TemplateNotRecognized:
+                except V9TemplateNotRecognized or IPFIXTemplateNotRecognized:
+                    # TODO: differentiate between v9 and IPFIX, use separate to_retry lists
                     if time.time() - pkt.ts > PACKET_TIMEOUT:
-                        logger.warning("Dropping an old and undecodable v9 ExportPacket")
+                        logger.warning("Dropping an old and undecodable v9/IPFIX ExportPacket")
                     else:
                         to_retry.append(pkt)
-                        logger.debug("Failed to decode a v9 ExportPacket - will "
+                        logger.debug("Failed to decode a v9/IPFIX ExportPacket - will "
                                      "re-attempt when a new template is discovered")
                     continue
 
                 if export.header.version == 10:
                     logger.debug("Processed an IPFIX ExportPacket with length %d.", export.header.length)
-                    logger.debug(export)
                 else:
                     logger.debug("Processed a v%d ExportPacket with %d flows.",
                                  export.header.version, export.header.count)
 
                 # If any new templates were discovered, dump the unprocessable
                 # data back into the queue and try to decode them again
-                if export.header.version == 9 and export.contains_new_templates and to_retry:
+                if export.header.version in [9, 10] and export.contains_new_templates and to_retry:
                     logger.debug("Received new template(s)")
-                    logger.debug("Will re-attempt to decode %d old v9 ExportPackets",
-                                 len(to_retry))
+                    logger.debug("Will re-attempt to decode %d old v9/IPFIX ExportPackets", len(to_retry))
                     for p in to_retry:
                         self.input.put(p)
                     to_retry.clear()

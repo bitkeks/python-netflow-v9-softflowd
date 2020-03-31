@@ -232,6 +232,10 @@ if __name__ == "__main__":
                 logger.error("Saved line \"{}\" has no timestamp key!".format(line))
                 continue
 
+            if entry[ts]["header"]["version"] == 10:
+                logger.warning("Skipped IPFIX entry, because analysis of IPFIX is not yet implemented")
+                continue
+
             data[ts] = entry[ts]
 
     # Go through data and dissect every flow saved inside the dump

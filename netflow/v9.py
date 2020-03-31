@@ -327,7 +327,7 @@ class V9ExportPacket:
         self.header = V9Header(data)
         self.templates = templates
         self._new_templates = False
-        self.flows = []
+        self._flows = []
 
         offset = self.header.length
         skipped_flowsets_offsets = []
@@ -349,7 +349,7 @@ class V9ExportPacket:
             else:
                 try:
                     dfs = V9DataFlowSet(data[offset:], self.templates)
-                    self.flows += dfs.flows
+                    self._flows += dfs.flows
                     offset += dfs.length
                 except V9TemplateNotRecognized:
                     # Could not be parsed, continue to check for templates
@@ -361,13 +361,17 @@ class V9ExportPacket:
             # Process flowsets in the data slice which occured before the template sets
             for offset in skipped_flowsets_offsets:
                 dfs = V9DataFlowSet(data[offset:], self.templates)
-                self.flows += dfs.flows
+                self._flows += dfs.flows
         elif skipped_flowsets_offsets:
             raise V9TemplateNotRecognized
 
     @property
     def contains_new_templates(self):
         return self._new_templates
+
+    @property
+    def flows(self):
+        return self._flows
 
     def __repr__(self):
         s = " and new template(s)" if self.contains_new_templates else ""
