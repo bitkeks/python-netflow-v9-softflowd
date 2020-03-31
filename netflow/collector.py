@@ -47,6 +47,7 @@ class QueuingUDPListener(socketserver.ThreadingUDPServer):
     """A threaded UDP server that adds a (time, data) tuple to a queue for
     every request it sees
     """
+
     def __init__(self, interface, queue):
         self.queue = queue
 
@@ -135,8 +136,12 @@ class ThreadedNetFlowListener(threading.Thread):
                                      "re-attempt when a new template is discovered")
                     continue
 
-                logger.debug("Processed a v%d ExportPacket with %d flows.",
-                             export.header.version, export.header.count)
+                if export.header.version == 10:
+                    logger.debug("Processed an IPFIX ExportPacket with length %d.", export.header.length)
+                    logger.debug(export)
+                else:
+                    logger.debug("Processed a v%d ExportPacket with %d flows.",
+                                 export.header.version, export.header.count)
 
                 # If any new templates were discovered, dump the unprocessable
                 # data back into the queue and try to decode them again

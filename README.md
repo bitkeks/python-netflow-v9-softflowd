@@ -56,7 +56,8 @@ To analyze the saved traffic, run `python3 -m netflow.analyzer -f <gzip file>`. 
 
 ## Resources
 * [Cisco NetFlow v9 paper](http://www.cisco.com/en/US/technologies/tk648/tk362/technologies_white_paper09186a00800a3db9.html)
-* [RFC "Cisco Systems NetFlow Services Export Version 9"](https://tools.ietf.org/html/rfc3954)
+* [RFC 3954 "Cisco Systems NetFlow Services Export Version 9"](https://tools.ietf.org/html/rfc3954)
+* [RFC 7011 "IPFIX Protocol Specification"](https://tools.ietf.org/html/rfc7011)
 
 ## Development environment
 The library was specifically written in combination with NetFlow exports from [softflowd](https://github.com/djmdjm/softflowd) v0.9.9 - it should work with every correct NetFlow v9 implementation though. If you stumble upon new custom template fields please let me know, they will make a fine addition to the `netflow.v9.V9_FIELD_TYPES` collection.

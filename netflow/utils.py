@@ -12,6 +12,7 @@ import struct
 from .v1 import V1ExportPacket
 from .v5 import V5ExportPacket
 from .v9 import V9ExportPacket
+from .ipfix import IPFIXExportPacket
 
 
 class UnknownNetFlowVersion(Exception):
@@ -53,4 +54,6 @@ def parse_packet(data, templates=None):
         return V5ExportPacket(data)
     elif version == 9:
         return V9ExportPacket(data, templates)
+    elif version == 10:
+        return IPFIXExportPacket(data, templates)
     raise UnknownNetFlowVersion(data, version)
