@@ -325,7 +325,7 @@ class V9ExportPacket:
     """
     def __init__(self, data, templates):
         self.header = V9Header(data)
-        self.templates = templates
+        self._templates = templates
         self._new_templates = False
         self._flows = []
 
@@ -339,16 +339,16 @@ class V9ExportPacket:
                 # Check for any new/changed templates
                 if not self._new_templates:
                     for id_, template in tfs.templates.items():
-                        if id_ not in self.templates or self.templates[id_] != template:
+                        if id_ not in self._templates or self._templates[id_] != template:
                             self._new_templates = True
                             break
 
                 # Update the templates with the provided templates, even if they are the same
-                self.templates.update(tfs.templates)
+                self._templates.update(tfs.templates)
                 offset += tfs.length
             else:
                 try:
-                    dfs = V9DataFlowSet(data[offset:], self.templates)
+                    dfs = V9DataFlowSet(data[offset:], self._templates)
                     self._flows += dfs.flows
                     offset += dfs.length
                 except V9TemplateNotRecognized:
@@ -360,7 +360,7 @@ class V9ExportPacket:
         if skipped_flowsets_offsets and self._new_templates:
             # Process flowsets in the data slice which occured before the template sets
             for offset in skipped_flowsets_offsets:
-                dfs = V9DataFlowSet(data[offset:], self.templates)
+                dfs = V9DataFlowSet(data[offset:], self._templates)
                 self._flows += dfs.flows
         elif skipped_flowsets_offsets:
             raise V9TemplateNotRecognized
@@ -372,6 +372,10 @@ class V9ExportPacket:
     @property
     def flows(self):
         return self._flows
+
+    @property
+    def templates(self):
+        return self._templates
 
     def __repr__(self):
         s = " and new template(s)" if self.contains_new_templates else ""

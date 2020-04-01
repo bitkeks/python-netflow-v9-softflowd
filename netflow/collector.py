@@ -128,7 +128,7 @@ class ThreadedNetFlowListener(threading.Thread):
                 except UnknownExportVersion as e:
                     logger.error("%s, ignoring the packet", e)
                     continue
-                except V9TemplateNotRecognized or IPFIXTemplateNotRecognized:
+                except (V9TemplateNotRecognized, IPFIXTemplateNotRecognized):
                     # TODO: differentiate between v9 and IPFIX, use separate to_retry lists
                     if time.time() - pkt.ts > PACKET_TIMEOUT:
                         logger.warning("Dropping an old and undecodable v9/IPFIX ExportPacket")
