@@ -232,6 +232,10 @@ if __name__ == "__main__":
                 logger.error("Saved line \"{}\" has no timestamp key!".format(line))
                 continue
 
+            if "header" not in entry[ts]:
+                logger.error("No header dict in entry {}".format(ts))
+                raise ValueError
+
             if entry[ts]["header"]["version"] == 10:
                 logger.warning("Skipped IPFIX entry, because analysis of IPFIX is not yet implemented")
                 continue
