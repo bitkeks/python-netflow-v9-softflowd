@@ -1,7 +1,7 @@
-# Python NetFlow library
-This package contains libraries and tools for **NetFlow versions 1, 5 and 9**.
+# Python NetFlow/IPFIX library
+This package contains libraries and tools for **NetFlow versions 1, 5 and 9, and IPFIX**.
 
-Version 9 is the first NetFlow version using templates. Templates make dynamically sized and configured NetFlow data flowsets possible, which makes the collector's job harder. The library provides the `netflow.parse_packet()` function as the main API point (see below). By importing `netflow.v1`, `netflow.v5` or `netflow.v9` you have direct access to the respective parsing objects, but at the beginning you probably will have more success by running the reference collector (example below) and look into its code.
+Version 9 is the first NetFlow version using templates. Templates make dynamically sized and configured NetFlow data flowsets possible, which makes the collector's job harder. The library provides the `netflow.parse_packet()` function as the main API point (see below). By importing `netflow.v1`, `netflow.v5` or `netflow.v9` you have direct access to the respective parsing objects, but at the beginning you probably will have more success by running the reference collector (example below) and look into its code. IPFIX (IP Flow Information Export) is based on NetFlow v9 and standardized by the IETF. All related classes are contained in `netflow.ipfix`. 
 
 Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
 
@@ -34,7 +34,7 @@ assert p.header.version == 5  # NetFlow v5 packet
 assert p.flows[0].PROTO == 1  # ICMP flow
 ```
 
-In NetFlow v9, templates are used instead of a fixed set of fields (like PROTO). See `collector.py` on how to handle these.
+In NetFlow v9 and IPFIX, templates are used instead of a fixed set of fields (like `PROTO`). See `collector.py` on how to handle these.
 
 ## Using the collector and analyzer
 Since v0.9.0 the `netflow` library also includes reference implementations of a collector and an analyzer as CLI tools.
@@ -60,22 +60,21 @@ To analyze the saved traffic, run `python3 -m netflow.analyzer -f <gzip file>`. 
 * [RFC 7011 "IPFIX Protocol Specification"](https://tools.ietf.org/html/rfc7011)
 
 ## Development environment
-The library was specifically written in combination with NetFlow exports from [softflowd](https://github.com/djmdjm/softflowd) v0.9.9 - it should work with every correct NetFlow v9 implementation though. If you stumble upon new custom template fields please let me know, they will make a fine addition to the `netflow.v9.V9_FIELD_TYPES` collection.
+The library was specifically written in combination with NetFlow exports from Hitoshi Irino's fork of [softflowd](https://github.com/irino/softflowd) (v1.0.0) - it should work with every correct NetFlow/IPFIX implementation though. If you stumble upon new custom template fields please let me know, they will make a fine addition to the `netflow.v9.V9_FIELD_TYPES` collection.
 
 ### Running and creating tests
-The test file contains some tests based on real softflowd export packets. During the development of this library, two ways of gathering these hex dumps were used. First, the tcpdump/Wireshark export way:
+The test files contain tests for all use cases in the library, based on real softflowd export packets. Whenever `softflowd` is referenced, a compiled version of softflowd 1.0.0 is meant, which is probably NOT the one in your distribution's package. During the development of this library, two ways of gathering these hex dumps were used. First, the tcpdump/Wireshark export way:
 
   1. Run tcpdump/Wireshark on your public-facing interface (with tcpdump, save the pcap to disk).
   2. Produce some sample flows, e.g. surf the web and refresh your mail client. With Wireshark, save the captured packets to disk.
   4. Run tcpdump/Wireshark again on a local interface.
-  4. Run softflowd with the `-r <pcap_file>` flag. softflowd reads the captured traffic, produces the flows and exports them. Use the interface you are capturing packets on to send the exports to. E.g. capture on the localhost interface (with `-i lo` or on loopback) and then let softflowd export to `127.0.0.1:1337`.
+  4. Run `softflowd` with the `-r <pcap_file>` flag. softflowd reads the captured traffic, produces the flows and exports them. Use the interface you are capturing packets on to send the exports to. E.g. capture on the localhost interface (with `-i lo` or on loopback) and then let softflowd export to `127.0.0.1:1337`.
   5. Examine the captured traffic. Use Wireshark and set the `CFLOW` "decode as" dissector on the export packets (e.g. based on the port). The `data` fields should then be shown correctly as Netflow payload.
   6. Extract this payload as hex stream. Anonymize the IP addresses with a hex editor if necessary. A recommended hex editor is [bless](https://github.com/afrantzis/bless).
 
 Second, a Docker way:
 
-  1. Run a Docker container, e.g. alpine Linux and install `softflowd` in it.
-  2. Run a softflowd daemon in the background inside the container, listening on `eth0` and exporting to e.g. `172.17.0.1:1337`.
+  2. Run a softflowd daemon in the background inside a Docker container, listening on `eth0` and exporting to e.g. `172.17.0.1:1337`.
   3. On your host start Wireshark to listen on the Docker bridge.
   4. Create some traffic from inside the container.
   5. Check the softflow daemon with `softflowctl dump-flows`.
@@ -83,6 +82,6 @@ Second, a Docker way:
   7. Your Wireshark should have picked up the epxort packets (it does not matter if there's a port unreachable error).
   8. Set the decoder for the packets to `CFLOW` and copy the hex value from the NetFlow packet.
 
-Your exported hex string should begin with `0001`, `0005` or `0009`, depending on the NetFlow version.
+Your exported hex string should begin with `0001`, `0005`, `0009` or `000a`, depending on the version.
 
 The collector is run in a background thread. The difference in transmission speed from the exporting client can lead to different results, possibly caused by race conditions during the usage of the GZIP output file.
