@@ -585,10 +585,13 @@ class IPFIXDataRecord:
         offset = 0
         unpacker = "!"
 
+        # 16 bytes fields must be handled extra, since Python struct has no support for it
+        occurences_of_16_bytes = []
+
         # Iterate through all fields of this template and build the unpack format string
         # TODO: this does not handle signed/unsigned or other types
         # See https://www.iana.org/assignments/ipfix/ipfix.xhtml
-        for field_type, field_length in template:
+        for index, (field_type, field_length) in enumerate(template):
             if field_length == 1:
                 unpacker += "B"
             elif field_length == 2:
@@ -597,15 +600,33 @@ class IPFIXDataRecord:
                 unpacker += "I"
             elif field_length == 8:
                 unpacker += "Q"
+            elif field_length == 16:
+                # Special case with 16 bytes.
+                # Take first byte of 16 bytes as fake "unpack item" and fill packer with ignored bytes.
+                # The fake one byte will later be ignored and replaced.
+                unpacker += "B" + "x" * 15
+                # add index in unpack list and data byte offset to special list
+                occurences_of_16_bytes.append((index, offset))
             else:
-                # TODO: IPv6 fields have 16 bytes, but struct does not support 16 bytes
                 raise IPFIXTemplateError("Template field_length {} not handled in unpacker".format(field_length))
             offset += field_length
 
-        pack = struct.unpack(unpacker, data[0:offset])
+        # Iterate through list of 16 bytes fields and convert their bytes from data to 128 bit integer
+        extra_16_bytes_list = []
+        for index, offset_ in occurences_of_16_bytes:
+            # The usage of int.from_bytes is based on the assumption that 16 bytes fields are only used for IPv6
+            extra_16_bytes_list.append((index, int.from_bytes(data[offset_:offset_+16], "big")))  # network = big
 
-        # Iterate through template again, but taking the unpacked value this time
-        for (field_type, _), value in zip(template, pack):
+        # Finally, unpack the data byte stream according to format defined in iteration above
+        pack = struct.unpack(unpacker, data[0:offset])  # holds ALL fields, including fake 16 bytes byte fields
+
+        # Iterate through template again, but taking the unpacked values this time
+        for index, ((field_type, field_length), value) in enumerate(zip(template, pack)):
+            if extra_16_bytes_list and extra_16_bytes_list[0][0] == index and field_length == 16:
+                # Overwrite the fake 16 bytes value (created by unpack with 1 byte) with real full integer
+                self.fields.append((field_type, extra_16_bytes_list.pop(0)[1]))
+                continue
+            # If the field_length is not 16, continue normally
             self.fields.append((field_type, value))
 
         self._length = offset
