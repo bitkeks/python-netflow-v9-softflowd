@@ -615,7 +615,7 @@ class IPFIXDataRecord:
         extra_16_bytes_list = []
         for index, offset_ in occurences_of_16_bytes:
             # The usage of int.from_bytes is based on the assumption that 16 bytes fields are only used for IPv6
-            extra_16_bytes_list.append((index, int.from_bytes(data[offset_:offset_+16], "big")))  # network = big
+            extra_16_bytes_list.append((index, int.from_bytes(data[offset_:offset_ + 16], "big")))  # network = big
 
         # Finally, unpack the data byte stream according to format defined in iteration above
         pack = struct.unpack(unpacker, data[0:offset])  # holds ALL fields, including fake 16 bytes byte fields
@@ -630,6 +630,7 @@ class IPFIXDataRecord:
             self.fields.append((field_type, value))
 
         self._length = offset
+        self.__dict__.update(self.data)
 
     def get_length(self):
         return self._length
@@ -651,21 +652,22 @@ class IPFIXSet:
     def __init__(self, data, templates):
         self.header = IPFIXSetHeader(data[0:IPFIXSetHeader.size])
         self.records = []
+        self._templates = {}
 
         offset = IPFIXSetHeader.size
         if self.header.set_id == 2:  # template set
             while offset < self.header.length:  # length of whole set
                 template_record = IPFIXTemplateRecord(data[offset:])
                 self.records.append(template_record)
-                templates[template_record.template_id] = template_record.fields
+                self._templates[template_record.template_id] = template_record.fields
                 offset += template_record.get_length()
 
         elif self.header.set_id == 3:  # options template
             while offset < self.header.length:
                 optionstemplate_record = IPFIXOptionsTemplateRecord(data[offset:])
                 self.records.append(optionstemplate_record)
-                templates[optionstemplate_record.template_id] = optionstemplate_record.scope_fields + \
-                                                                optionstemplate_record.fields
+                self._templates[optionstemplate_record.template_id] = \
+                    optionstemplate_record.scope_fields + optionstemplate_record.fields
                 offset += optionstemplate_record.get_length()
 
         elif self.header.set_id >= 256:  # data set, set_id is template id
@@ -688,6 +690,10 @@ class IPFIXSet:
     @property
     def is_data(self):
         return self.header.set_id >= 256
+
+    @property
+    def templates(self):
+        return self._templates
 
     def __repr__(self):
         return "<IPFIXSet with set_id {} and {} records>".format(self.header.set_id, len(self.records))
@@ -728,12 +734,17 @@ class IPFIXExportPacket:
         self.sets = []
         self._contains_new_templates = False
         self._flows = []
+        self._templates = templates
 
         offset = IPFIXHeader.size
         while offset < self.header.length:
-            new_set = IPFIXSet(data[offset:], templates)
+            try:
+                new_set = IPFIXSet(data[offset:], templates)
+            except IPFIXTemplateNotRecognized:
+                raise
             if new_set.is_template:
                 self._contains_new_templates = True
+                self._templates.update(new_set.templates)
             elif new_set.is_data:
                 self._flows += new_set.records
 
@@ -751,6 +762,10 @@ class IPFIXExportPacket:
     @property
     def flows(self):
         return self._flows
+
+    @property
+    def templates(self):
+        return self._templates
 
     def __repr__(self):
         return "<IPFIXExportPacket with {} sets, exported at {}>".format(
