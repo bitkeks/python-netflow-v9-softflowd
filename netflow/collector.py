@@ -155,6 +155,7 @@ class ThreadedNetFlowListener(threading.Thread):
 
                 self.output.put(ParsedPacket(pkt.ts, pkt.client, export))
         finally:
+            # Only reached when while loop ends
             self.server.shutdown()
             self.server.server_close()
 

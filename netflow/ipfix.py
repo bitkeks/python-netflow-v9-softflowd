@@ -12,140 +12,470 @@ import struct
 
 # Source: https://www.iana.org/assignments/ipfix/ipfix-information-elements.csv
 IPFIX_FIELD_TYPES = {
-    0: "Reserved", 1: 'octetDeltaCount', 2: "packetDeltaCount", 3: "deltaFlowCount", 4: "protocolIdentifier",
-    5: "ipClassOfService", 6: "tcpControlBits", 7: "sourceTransportPort", 8: "sourceIPv4Address",
-    9: "sourceIPv4PrefixLength", 10: "ingressInterface", 11: "destinationTransportPort",
-    12: "destinationIPv4Address", 13: "destinationIPv4PrefixLength", 14: "egressInterface",
-    15: "ipNextHopIPv4Address", 16: "bgpSourceAsNumber", 17: "bgpDestinationAsNumber", 18: "bgpNextHopIPv4Address",
-    19: "postMCastPacketDeltaCount", 20: "postMCastOctetDeltaCount", 21: "flowEndSysUpTime",
-    22: "flowStartSysUpTime", 23: "postOctetDeltaCount", 24: "postPacketDeltaCount", 25: "minimumIpTotalLength",
-    26: "maximumIpTotalLength", 27: "sourceIPv6Address", 28: "destinationIPv6Address",
-    29: "sourceIPv6PrefixLength", 30: "destinationIPv6PrefixLength", 31: "flowLabelIPv6", 32: "icmpTypeCodeIPv4",
-    33: "igmpType", 34: "samplingInterval", 35: "samplingAlgorithm", 36: "flowActiveTimeout",
-    37: "flowIdleTimeout", 38: "engineType", 39: "engineId", 40: "exportedOctetTotalCount",
-    41: "exportedMessageTotalCount", 42: "exportedFlowRecordTotalCount", 43: "ipv4RouterSc",
-    44: "sourceIPv4Prefix", 45: "destinationIPv4Prefix", 46: "mplsTopLabelType", 47: "mplsTopLabelIPv4Address",
-    48: "samplerId", 49: "samplerMode", 50: "samplerRandomInterval", 51: "classId", 52: "minimumTTL",
-    53: "maximumTTL", 54: "fragmentIdentification", 55: "postIpClassOfService", 56: "sourceMacAddress",
-    57: "postDestinationMacAddress", 58: "vlanId", 59: "postVlanId", 60: "ipVersion", 61: "flowDirection",
-    62: "ipNextHopIPv6Address", 63: "bgpNextHopIPv6Address", 64: "ipv6ExtensionHeaders",
-    70: "mplsTopLabelStackSection", 71: "mplsLabelStackSection2", 72: "mplsLabelStackSection3",
-    73: "mplsLabelStackSection4", 74: "mplsLabelStackSection5", 75: "mplsLabelStackSection6",
-    76: "mplsLabelStackSection7", 77: "mplsLabelStackSection8", 78: "mplsLabelStackSection9",
-    79: "mplsLabelStackSection10", 80: "destinationMacAddress", 81: "postSourceMacAddress", 82: "interfaceName",
-    83: "interfaceDescription", 84: "samplerName", 85: "octetTotalCount", 86: "packetTotalCount",
-    87: "flagsAndSamplerId", 88: "fragmentOffset", 89: "forwardingStatus", 90: "mplsVpnRouteDistinguisher",
-    91: "mplsTopLabelPrefixLength", 92: "srcTrafficIndex", 93: "dstTrafficIndex", 94: "applicationDescription",
-    95: "applicationId", 96: "applicationName", 97: "Assigned for NetFlow v9 compatibility",
-    98: "postIpDiffServCodePoint", 99: "multicastReplicationFactor", 100: "className",
-    101: "classificationEngineId", 102: "layer2packetSectionOffset", 103: "layer2packetSectionSize",
-    104: "layer2packetSectionData", 128: "bgpNextAdjacentAsNumber", 129: "bgpPrevAdjacentAsNumber",
-    130: "exporterIPv4Address", 131: "exporterIPv6Address", 132: "droppedOctetDeltaCount",
-    133: "droppedPacketDeltaCount", 134: "droppedOctetTotalCount", 135: "droppedPacketTotalCount",
-    136: "flowEndReason", 137: "commonPropertiesId", 138: "observationPointId", 139: "icmpTypeCodeIPv6",
-    140: "mplsTopLabelIPv6Address", 141: "lineCardId", 142: "portId", 143: "meteringProcessId",
-    144: "exportingProcessId", 145: "templateId", 146: "wlanChannelId", 147: "wlanSSID", 148: "flowId",
-    149: "observationDomainId", 150: "flowStartSeconds", 151: "flowEndSeconds", 152: "flowStartMilliseconds",
-    153: "flowEndMilliseconds", 154: "flowStartMicroseconds", 155: "flowEndMicroseconds",
-    156: "flowStartNanoseconds", 157: "flowEndNanoseconds", 158: "flowStartDeltaMicroseconds",
-    159: "flowEndDeltaMicroseconds", 160: "systemInitTimeMilliseconds", 161: "flowDurationMilliseconds",
-    162: "flowDurationMicroseconds", 163: "observedFlowTotalCount", 164: "ignoredPacketTotalCount",
-    165: "ignoredOctetTotalCount", 166: "notSentFlowTotalCount", 167: "notSentPacketTotalCount",
-    168: "notSentOctetTotalCount", 169: "destinationIPv6Prefix", 170: "sourceIPv6Prefix",
-    171: "postOctetTotalCount", 172: "postPacketTotalCount", 173: "flowKeyIndicator",
-    174: "postMCastPacketTotalCount", 175: "postMCastOctetTotalCount", 176: "icmpTypeIPv4", 177: "icmpCodeIPv4",
-    178: "icmpTypeIPv6", 179: "icmpCodeIPv6", 180: "udpSourcePort", 181: "udpDestinationPort",
-    182: "tcpSourcePort", 183: "tcpDestinationPort", 184: "tcpSequenceNumber", 185: "tcpAcknowledgementNumber",
-    186: "tcpWindowSize", 187: "tcpUrgentPointer", 188: "tcpHeaderLength", 189: "ipHeaderLength",
-    190: "totalLengthIPv4", 191: "payloadLengthIPv6", 192: "ipTTL", 193: "nextHeaderIPv6",
-    194: "mplsPayloadLength", 195: "ipDiffServCodePoint", 196: "ipPrecedence", 197: "fragmentFlags",
-    198: "octetDeltaSumOfSquares", 199: "octetTotalSumOfSquares", 200: "mplsTopLabelTTL",
-    201: "mplsLabelStackLength", 202: "mplsLabelStackDepth", 203: "mplsTopLabelExp", 204: "ipPayloadLength",
-    205: "udpMessageLength", 206: "isMulticast", 207: "ipv4IHL", 208: "ipv4Options", 209: "tcpOptions",
-    210: "paddingOctets", 211: "collectorIPv4Address", 212: "collectorIPv6Address", 213: "exportInterface",
-    214: "exportProtocolVersion", 215: "exportTransportProtocol", 216: "collectorTransportPort",
-    217: "exporterTransportPort", 218: "tcpSynTotalCount", 219: "tcpFinTotalCount", 220: "tcpRstTotalCount",
-    221: "tcpPshTotalCount", 222: "tcpAckTotalCount", 223: "tcpUrgTotalCount", 224: "ipTotalLength",
-    225: "postNATSourceIPv4Address", 226: "postNATDestinationIPv4Address", 227: "postNAPTSourceTransportPort",
-    228: "postNAPTDestinationTransportPort", 229: "natOriginatingAddressRealm", 230: "natEvent",
-    231: "initiatorOctets", 232: "responderOctets", 233: "firewallEvent", 234: "ingressVRFID", 235: "egressVRFID",
-    236: "VRFname", 237: "postMplsTopLabelExp", 238: "tcpWindowScale", 239: "biflowDirection",
-    240: "ethernetHeaderLength", 241: "ethernetPayloadLength", 242: "ethernetTotalLength", 243: "dot1qVlanId",
-    244: "dot1qPriority", 245: "dot1qCustomerVlanId", 246: "dot1qCustomerPriority", 247: "metroEvcId",
-    248: "metroEvcType", 249: "pseudoWireId", 250: "pseudoWireType", 251: "pseudoWireControlWord",
-    252: "ingressPhysicalInterface", 253: "egressPhysicalInterface", 254: "postDot1qVlanId",
-    255: "postDot1qCustomerVlanId", 256: "ethernetType", 257: "postIpPrecedence",
-    258: "collectionTimeMilliseconds", 259: "exportSctpStreamId", 260: "maxExportSeconds",
-    261: "maxFlowEndSeconds", 262: "messageMD5Checksum", 263: "messageScope", 264: "minExportSeconds",
-    265: "minFlowStartSeconds", 266: "opaqueOctets", 267: "sessionScope", 268: "maxFlowEndMicroseconds",
-    269: "maxFlowEndMilliseconds", 270: "maxFlowEndNanoseconds", 271: "minFlowStartMicroseconds",
-    272: "minFlowStartMilliseconds", 273: "minFlowStartNanoseconds", 274: "collectorCertificate",
-    275: "exporterCertificate", 276: "dataRecordsReliability", 277: "observationPointType",
-    278: "newConnectionDeltaCount", 279: "connectionSumDurationSeconds", 280: "connectionTransactionId",
-    281: "postNATSourceIPv6Address", 282: "postNATDestinationIPv6Address", 283: "natPoolId", 284: "natPoolName",
-    285: "anonymizationFlags", 286: "anonymizationTechnique", 287: "informationElementIndex", 288: "p2pTechnology",
-    289: "tunnelTechnology", 290: "encryptedTechnology", 291: "basicList", 292: "subTemplateList",
-    293: "subTemplateMultiList", 294: "bgpValidityState", 295: "IPSecSPI", 296: "greKey", 297: "natType",
-    298: "initiatorPackets", 299: "responderPackets", 300: "observationDomainName", 301: "selectionSequenceId",
-    302: "selectorId", 303: "informationElementId", 304: "selectorAlgorithm", 305: "samplingPacketInterval",
-    306: "samplingPacketSpace", 307: "samplingTimeInterval", 308: "samplingTimeSpace", 309: "samplingSize",
-    310: "samplingPopulation", 311: "samplingProbability", 312: "dataLinkFrameSize", 313: "ipHeaderPacketSection",
-    314: "ipPayloadPacketSection", 315: "dataLinkFrameSection", 316: "mplsLabelStackSection",
-    317: "mplsPayloadPacketSection", 318: "selectorIdTotalPktsObserved", 319: "selectorIdTotalPktsSelected",
-    320: "absoluteError", 321: "relativeError", 322: "observationTimeSeconds", 323: "observationTimeMilliseconds",
-    324: "observationTimeMicroseconds", 325: "observationTimeNanoseconds", 326: "digestHashValue",
-    327: "hashIPPayloadOffset", 328: "hashIPPayloadSize", 329: "hashOutputRangeMin", 330: "hashOutputRangeMax",
-    331: "hashSelectedRangeMin", 332: "hashSelectedRangeMax", 333: "hashDigestOutput", 334: "hashInitialiserValue",
-    335: "selectorName", 336: "upperCILimit", 337: "lowerCILimit", 338: "confidenceLevel",
-    339: "informationElementDataType", 340: "informationElementDescription", 341: "informationElementName",
-    342: "informationElementRangeBegin", 343: "informationElementRangeEnd", 344: "informationElementSemantics",
-    345: "informationElementUnits", 346: "privateEnterpriseNumber", 347: "virtualStationInterfaceId",
-    348: "virtualStationInterfaceName", 349: "virtualStationUUID", 350: "virtualStationName",
-    351: "layer2SegmentId", 352: "layer2OctetDeltaCount", 353: "layer2OctetTotalCount",
-    354: "ingressUnicastPacketTotalCount", 355: "ingressMulticastPacketTotalCount",
-    356: "ingressBroadcastPacketTotalCount", 357: "egressUnicastPacketTotalCount",
-    358: "egressBroadcastPacketTotalCount", 359: "monitoringIntervalStartMilliSeconds",
-    360: "monitoringIntervalEndMilliSeconds", 361: "portRangeStart", 362: "portRangeEnd", 363: "portRangeStepSize",
-    364: "portRangeNumPorts", 365: "staMacAddress", 366: "staIPv4Address", 367: "wtpMacAddress",
-    368: "ingressInterfaceType", 369: "egressInterfaceType", 370: "rtpSequenceNumber", 371: "userName",
-    372: "applicationCategoryName", 373: "applicationSubCategoryName", 374: "applicationGroupName",
-    375: "originalFlowsPresent", 376: "originalFlowsInitiated", 377: "originalFlowsCompleted",
-    378: "distinctCountOfSourceIPAddress", 379: "distinctCountOfDestinationIPAddress",
-    380: "distinctCountOfSourceIPv4Address", 381: "distinctCountOfDestinationIPv4Address",
-    382: "distinctCountOfSourceIPv6Address", 383: "distinctCountOfDestinationIPv6Address",
-    384: "valueDistributionMethod", 385: "rfc3550JitterMilliseconds", 386: "rfc3550JitterMicroseconds",
-    387: "rfc3550JitterNanoseconds", 388: "dot1qDEI", 389: "dot1qCustomerDEI", 390: "flowSelectorAlgorithm",
-    391: "flowSelectedOctetDeltaCount", 392: "flowSelectedPacketDeltaCount", 393: "flowSelectedFlowDeltaCount",
-    394: "selectorIDTotalFlowsObserved", 395: "selectorIDTotalFlowsSelected", 396: "samplingFlowInterval",
-    397: "samplingFlowSpacing", 398: "flowSamplingTimeInterval", 399: "flowSamplingTimeSpacing",
-    400: "hashFlowDomain", 401: "transportOctetDeltaCount", 402: "transportPacketDeltaCount",
-    403: "originalExporterIPv4Address", 404: "originalExporterIPv6Address", 405: "originalObservationDomainId",
-    406: "intermediateProcessId", 407: "ignoredDataRecordTotalCount", 408: "dataLinkFrameType",
-    409: "sectionOffset", 410: "sectionExportedOctets", 411: "dot1qServiceInstanceTag",
-    412: "dot1qServiceInstanceId", 413: "dot1qServiceInstancePriority", 414: "dot1qCustomerSourceMacAddress",
-    415: "dot1qCustomerDestinationMacAddress", 416: "", 417: "postLayer2OctetDeltaCount",
-    418: "postMCastLayer2OctetDeltaCount", 419: "", 420: "postLayer2OctetTotalCount",
-    421: "postMCastLayer2OctetTotalCount", 422: "minimumLayer2TotalLength", 423: "maximumLayer2TotalLength",
-    424: "droppedLayer2OctetDeltaCount", 425: "droppedLayer2OctetTotalCount", 426: "ignoredLayer2OctetTotalCount",
-    427: "notSentLayer2OctetTotalCount", 428: "layer2OctetDeltaSumOfSquares", 429: "layer2OctetTotalSumOfSquares",
-    430: "layer2FrameDeltaCount", 431: "layer2FrameTotalCount", 432: "pseudoWireDestinationIPv4Address",
-    433: "ignoredLayer2FrameTotalCount", 434: "mibObjectValueInteger", 435: "mibObjectValueOctetString",
-    436: "mibObjectValueOID", 437: "mibObjectValueBits", 438: "mibObjectValueIPAddress",
-    439: "mibObjectValueCounter", 440: "mibObjectValueGauge", 441: "mibObjectValueTimeTicks",
-    442: "mibObjectValueUnsigned", 443: "mibObjectValueTable", 444: "mibObjectValueRow",
-    445: "mibObjectIdentifier", 446: "mibSubIdentifier", 447: "mibIndexIndicator", 448: "mibCaptureTimeSemantics",
-    449: "mibContextEngineID", 450: "mibContextName", 451: "mibObjectName", 452: "mibObjectDescription",
-    453: "mibObjectSyntax", 454: "mibModuleName", 455: "mobileIMSI", 456: "mobileMSISDN", 457: "httpStatusCode",
-    458: "sourceTransportPortsLimit", 459: "httpRequestMethod", 460: "httpRequestHost", 461: "httpRequestTarget",
-    462: "httpMessageVersion", 463: "natInstanceID", 464: "internalAddressRealm", 465: "externalAddressRealm",
-    466: "natQuotaExceededEvent", 467: "natThresholdEvent", 468: "httpUserAgent", 469: "httpContentType",
-    470: "httpReasonPhrase", 471: "maxSessionEntries", 472: "maxBIBEntries", 473: "maxEntriesPerUser",
-    474: "maxSubscribers", 475: "maxFragmentsPendingReassembly", 476: "addressPoolHighThreshold",
-    477: "addressPoolLowThreshold", 478: "addressPortMappingHighThreshold", 479: "addressPortMappingLowThreshold",
-    480: "addressPortMappingPerUserHighThreshold", 481: "globalAddressMappingHighThreshold", 482: "vpnIdentifier",
-    483: "bgpCommunity", 484: "bgpSourceCommunityList", 485: "bgpDestinationCommunityList",
-    486: "bgpExtendedCommunity", 487: "bgpSourceExtendedCommunityList", 488: "bgpDestinationExtendedCommunityList",
-    489: "bgpLargeCommunity", 490: "bgpSourceLargeCommunityList", 491: "bgpDestinationLargeCommunityList"
+    0: "Reserved",  #
+    1: "octetDeltaCount",  # unsigned64
+    2: "packetDeltaCount",  # unsigned64
+    3: "deltaFlowCount",  # unsigned64
+    4: "protocolIdentifier",  # unsigned8
+    5: "ipClassOfService",  # unsigned8
+    6: "tcpControlBits",  # unsigned16
+    7: "sourceTransportPort",  # unsigned16
+    8: "sourceIPv4Address",  # ipv4Address
+    9: "sourceIPv4PrefixLength",  # unsigned8
+    10: "ingressInterface",  # unsigned32
+    11: "destinationTransportPort",  # unsigned16
+    12: "destinationIPv4Address",  # ipv4Address
+    13: "destinationIPv4PrefixLength",  # unsigned8
+    14: "egressInterface",  # unsigned32
+    15: "ipNextHopIPv4Address",  # ipv4Address
+    16: "bgpSourceAsNumber",  # unsigned32
+    17: "bgpDestinationAsNumber",  # unsigned32
+    18: "bgpNextHopIPv4Address",  # ipv4Address
+    19: "postMCastPacketDeltaCount",  # unsigned64
+    20: "postMCastOctetDeltaCount",  # unsigned64
+    21: "flowEndSysUpTime",  # unsigned32
+    22: "flowStartSysUpTime",  # unsigned32
+    23: "postOctetDeltaCount",  # unsigned64
+    24: "postPacketDeltaCount",  # unsigned64
+    25: "minimumIpTotalLength",  # unsigned64
+    26: "maximumIpTotalLength",  # unsigned64
+    27: "sourceIPv6Address",  # ipv6Address
+    28: "destinationIPv6Address",  # ipv6Address
+    29: "sourceIPv6PrefixLength",  # unsigned8
+    30: "destinationIPv6PrefixLength",  # unsigned8
+    31: "flowLabelIPv6",  # unsigned32
+    32: "icmpTypeCodeIPv4",  # unsigned16
+    33: "igmpType",  # unsigned8
+    34: "samplingInterval",  # unsigned32
+    35: "samplingAlgorithm",  # unsigned8
+    36: "flowActiveTimeout",  # unsigned16
+    37: "flowIdleTimeout",  # unsigned16
+    38: "engineType",  # unsigned8
+    39: "engineId",  # unsigned8
+    40: "exportedOctetTotalCount",  # unsigned64
+    41: "exportedMessageTotalCount",  # unsigned64
+    42: "exportedFlowRecordTotalCount",  # unsigned64
+    43: "ipv4RouterSc",  # ipv4Address
+    44: "sourceIPv4Prefix",  # ipv4Address
+    45: "destinationIPv4Prefix",  # ipv4Address
+    46: "mplsTopLabelType",  # unsigned8
+    47: "mplsTopLabelIPv4Address",  # ipv4Address
+    48: "samplerId",  # unsigned8
+    49: "samplerMode",  # unsigned8
+    50: "samplerRandomInterval",  # unsigned32
+    51: "classId",  # unsigned8
+    52: "minimumTTL",  # unsigned8
+    53: "maximumTTL",  # unsigned8
+    54: "fragmentIdentification",  # unsigned32
+    55: "postIpClassOfService",  # unsigned8
+    56: "sourceMacAddress",  # macAddress
+    57: "postDestinationMacAddress",  # macAddress
+    58: "vlanId",  # unsigned16
+    59: "postVlanId",  # unsigned16
+    60: "ipVersion",  # unsigned8
+    61: "flowDirection",  # unsigned8
+    62: "ipNextHopIPv6Address",  # ipv6Address
+    63: "bgpNextHopIPv6Address",  # ipv6Address
+    64: "ipv6ExtensionHeaders",  # unsigned32
+    70: "mplsTopLabelStackSection",  # octetArray
+    71: "mplsLabelStackSection2",  # octetArray
+    72: "mplsLabelStackSection3",  # octetArray
+    73: "mplsLabelStackSection4",  # octetArray
+    74: "mplsLabelStackSection5",  # octetArray
+    75: "mplsLabelStackSection6",  # octetArray
+    76: "mplsLabelStackSection7",  # octetArray
+    77: "mplsLabelStackSection8",  # octetArray
+    78: "mplsLabelStackSection9",  # octetArray
+    79: "mplsLabelStackSection10",  # octetArray
+    80: "destinationMacAddress",  # macAddress
+    81: "postSourceMacAddress",  # macAddress
+    82: "interfaceName",  # string
+    83: "interfaceDescription",  # string
+    84: "samplerName",  # string
+    85: "octetTotalCount",  # unsigned64
+    86: "packetTotalCount",  # unsigned64
+    87: "flagsAndSamplerId",  # unsigned32
+    88: "fragmentOffset",  # unsigned16
+    89: "forwardingStatus",  # unsigned8
+    90: "mplsVpnRouteDistinguisher",  # octetArray
+    91: "mplsTopLabelPrefixLength",  # unsigned8
+    92: "srcTrafficIndex",  # unsigned32
+    93: "dstTrafficIndex",  # unsigned32
+    94: "applicationDescription",  # string
+    95: "applicationId",  # octetArray
+    96: "applicationName",  # string
+    97: "Assigned for NetFlow v9 compatibility",  #
+    98: "postIpDiffServCodePoint",  # unsigned8
+    99: "multicastReplicationFactor",  # unsigned32
+    100: "className",  # string
+    101: "classificationEngineId",  # unsigned8
+    102: "layer2packetSectionOffset",  # unsigned16
+    103: "layer2packetSectionSize",  # unsigned16
+    104: "layer2packetSectionData",  # octetArray
+    128: "bgpNextAdjacentAsNumber",  # unsigned32
+    129: "bgpPrevAdjacentAsNumber",  # unsigned32
+    130: "exporterIPv4Address",  # ipv4Address
+    131: "exporterIPv6Address",  # ipv6Address
+    132: "droppedOctetDeltaCount",  # unsigned64
+    133: "droppedPacketDeltaCount",  # unsigned64
+    134: "droppedOctetTotalCount",  # unsigned64
+    135: "droppedPacketTotalCount",  # unsigned64
+    136: "flowEndReason",  # unsigned8
+    137: "commonPropertiesId",  # unsigned64
+    138: "observationPointId",  # unsigned64
+    139: "icmpTypeCodeIPv6",  # unsigned16
+    140: "mplsTopLabelIPv6Address",  # ipv6Address
+    141: "lineCardId",  # unsigned32
+    142: "portId",  # unsigned32
+    143: "meteringProcessId",  # unsigned32
+    144: "exportingProcessId",  # unsigned32
+    145: "templateId",  # unsigned16
+    146: "wlanChannelId",  # unsigned8
+    147: "wlanSSID",  # string
+    148: "flowId",  # unsigned64
+    149: "observationDomainId",  # unsigned32
+    150: "flowStartSeconds",  # dateTimeSeconds
+    151: "flowEndSeconds",  # dateTimeSeconds
+    152: "flowStartMilliseconds",  # dateTimeMilliseconds
+    153: "flowEndMilliseconds",  # dateTimeMilliseconds
+    154: "flowStartMicroseconds",  # dateTimeMicroseconds
+    155: "flowEndMicroseconds",  # dateTimeMicroseconds
+    156: "flowStartNanoseconds",  # dateTimeNanoseconds
+    157: "flowEndNanoseconds",  # dateTimeNanoseconds
+    158: "flowStartDeltaMicroseconds",  # unsigned32
+    159: "flowEndDeltaMicroseconds",  # unsigned32
+    160: "systemInitTimeMilliseconds",  # dateTimeMilliseconds
+    161: "flowDurationMilliseconds",  # unsigned32
+    162: "flowDurationMicroseconds",  # unsigned32
+    163: "observedFlowTotalCount",  # unsigned64
+    164: "ignoredPacketTotalCount",  # unsigned64
+    165: "ignoredOctetTotalCount",  # unsigned64
+    166: "notSentFlowTotalCount",  # unsigned64
+    167: "notSentPacketTotalCount",  # unsigned64
+    168: "notSentOctetTotalCount",  # unsigned64
+    169: "destinationIPv6Prefix",  # ipv6Address
+    170: "sourceIPv6Prefix",  # ipv6Address
+    171: "postOctetTotalCount",  # unsigned64
+    172: "postPacketTotalCount",  # unsigned64
+    173: "flowKeyIndicator",  # unsigned64
+    174: "postMCastPacketTotalCount",  # unsigned64
+    175: "postMCastOctetTotalCount",  # unsigned64
+    176: "icmpTypeIPv4",  # unsigned8
+    177: "icmpCodeIPv4",  # unsigned8
+    178: "icmpTypeIPv6",  # unsigned8
+    179: "icmpCodeIPv6",  # unsigned8
+    180: "udpSourcePort",  # unsigned16
+    181: "udpDestinationPort",  # unsigned16
+    182: "tcpSourcePort",  # unsigned16
+    183: "tcpDestinationPort",  # unsigned16
+    184: "tcpSequenceNumber",  # unsigned32
+    185: "tcpAcknowledgementNumber",  # unsigned32
+    186: "tcpWindowSize",  # unsigned16
+    187: "tcpUrgentPointer",  # unsigned16
+    188: "tcpHeaderLength",  # unsigned8
+    189: "ipHeaderLength",  # unsigned8
+    190: "totalLengthIPv4",  # unsigned16
+    191: "payloadLengthIPv6",  # unsigned16
+    192: "ipTTL",  # unsigned8
+    193: "nextHeaderIPv6",  # unsigned8
+    194: "mplsPayloadLength",  # unsigned32
+    195: "ipDiffServCodePoint",  # unsigned8
+    196: "ipPrecedence",  # unsigned8
+    197: "fragmentFlags",  # unsigned8
+    198: "octetDeltaSumOfSquares",  # unsigned64
+    199: "octetTotalSumOfSquares",  # unsigned64
+    200: "mplsTopLabelTTL",  # unsigned8
+    201: "mplsLabelStackLength",  # unsigned32
+    202: "mplsLabelStackDepth",  # unsigned32
+    203: "mplsTopLabelExp",  # unsigned8
+    204: "ipPayloadLength",  # unsigned32
+    205: "udpMessageLength",  # unsigned16
+    206: "isMulticast",  # unsigned8
+    207: "ipv4IHL",  # unsigned8
+    208: "ipv4Options",  # unsigned32
+    209: "tcpOptions",  # unsigned64
+    210: "paddingOctets",  # octetArray
+    211: "collectorIPv4Address",  # ipv4Address
+    212: "collectorIPv6Address",  # ipv6Address
+    213: "exportInterface",  # unsigned32
+    214: "exportProtocolVersion",  # unsigned8
+    215: "exportTransportProtocol",  # unsigned8
+    216: "collectorTransportPort",  # unsigned16
+    217: "exporterTransportPort",  # unsigned16
+    218: "tcpSynTotalCount",  # unsigned64
+    219: "tcpFinTotalCount",  # unsigned64
+    220: "tcpRstTotalCount",  # unsigned64
+    221: "tcpPshTotalCount",  # unsigned64
+    222: "tcpAckTotalCount",  # unsigned64
+    223: "tcpUrgTotalCount",  # unsigned64
+    224: "ipTotalLength",  # unsigned64
+    225: "postNATSourceIPv4Address",  # ipv4Address
+    226: "postNATDestinationIPv4Address",  # ipv4Address
+    227: "postNAPTSourceTransportPort",  # unsigned16
+    228: "postNAPTDestinationTransportPort",  # unsigned16
+    229: "natOriginatingAddressRealm",  # unsigned8
+    230: "natEvent",  # unsigned8
+    231: "initiatorOctets",  # unsigned64
+    232: "responderOctets",  # unsigned64
+    233: "firewallEvent",  # unsigned8
+    234: "ingressVRFID",  # unsigned32
+    235: "egressVRFID",  # unsigned32
+    236: "VRFname",  # string
+    237: "postMplsTopLabelExp",  # unsigned8
+    238: "tcpWindowScale",  # unsigned16
+    239: "biflowDirection",  # unsigned8
+    240: "ethernetHeaderLength",  # unsigned8
+    241: "ethernetPayloadLength",  # unsigned16
+    242: "ethernetTotalLength",  # unsigned16
+    243: "dot1qVlanId",  # unsigned16
+    244: "dot1qPriority",  # unsigned8
+    245: "dot1qCustomerVlanId",  # unsigned16
+    246: "dot1qCustomerPriority",  # unsigned8
+    247: "metroEvcId",  # string
+    248: "metroEvcType",  # unsigned8
+    249: "pseudoWireId",  # unsigned32
+    250: "pseudoWireType",  # unsigned16
+    251: "pseudoWireControlWord",  # unsigned32
+    252: "ingressPhysicalInterface",  # unsigned32
+    253: "egressPhysicalInterface",  # unsigned32
+    254: "postDot1qVlanId",  # unsigned16
+    255: "postDot1qCustomerVlanId",  # unsigned16
+    256: "ethernetType",  # unsigned16
+    257: "postIpPrecedence",  # unsigned8
+    258: "collectionTimeMilliseconds",  # dateTimeMilliseconds
+    259: "exportSctpStreamId",  # unsigned16
+    260: "maxExportSeconds",  # dateTimeSeconds
+    261: "maxFlowEndSeconds",  # dateTimeSeconds
+    262: "messageMD5Checksum",  # octetArray
+    263: "messageScope",  # unsigned8
+    264: "minExportSeconds",  # dateTimeSeconds
+    265: "minFlowStartSeconds",  # dateTimeSeconds
+    266: "opaqueOctets",  # octetArray
+    267: "sessionScope",  # unsigned8
+    268: "maxFlowEndMicroseconds",  # dateTimeMicroseconds
+    269: "maxFlowEndMilliseconds",  # dateTimeMilliseconds
+    270: "maxFlowEndNanoseconds",  # dateTimeNanoseconds
+    271: "minFlowStartMicroseconds",  # dateTimeMicroseconds
+    272: "minFlowStartMilliseconds",  # dateTimeMilliseconds
+    273: "minFlowStartNanoseconds",  # dateTimeNanoseconds
+    274: "collectorCertificate",  # octetArray
+    275: "exporterCertificate",  # octetArray
+    276: "dataRecordsReliability",  # boolean
+    277: "observationPointType",  # unsigned8
+    278: "newConnectionDeltaCount",  # unsigned32
+    279: "connectionSumDurationSeconds",  # unsigned64
+    280: "connectionTransactionId",  # unsigned64
+    281: "postNATSourceIPv6Address",  # ipv6Address
+    282: "postNATDestinationIPv6Address",  # ipv6Address
+    283: "natPoolId",  # unsigned32
+    284: "natPoolName",  # string
+    285: "anonymizationFlags",  # unsigned16
+    286: "anonymizationTechnique",  # unsigned16
+    287: "informationElementIndex",  # unsigned16
+    288: "p2pTechnology",  # string
+    289: "tunnelTechnology",  # string
+    290: "encryptedTechnology",  # string
+    291: "basicList",  # basicList
+    292: "subTemplateList",  # subTemplateList
+    293: "subTemplateMultiList",  # subTemplateMultiList
+    294: "bgpValidityState",  # unsigned8
+    295: "IPSecSPI",  # unsigned32
+    296: "greKey",  # unsigned32
+    297: "natType",  # unsigned8
+    298: "initiatorPackets",  # unsigned64
+    299: "responderPackets",  # unsigned64
+    300: "observationDomainName",  # string
+    301: "selectionSequenceId",  # unsigned64
+    302: "selectorId",  # unsigned64
+    303: "informationElementId",  # unsigned16
+    304: "selectorAlgorithm",  # unsigned16
+    305: "samplingPacketInterval",  # unsigned32
+    306: "samplingPacketSpace",  # unsigned32
+    307: "samplingTimeInterval",  # unsigned32
+    308: "samplingTimeSpace",  # unsigned32
+    309: "samplingSize",  # unsigned32
+    310: "samplingPopulation",  # unsigned32
+    311: "samplingProbability",  # float64
+    312: "dataLinkFrameSize",  # unsigned16
+    313: "ipHeaderPacketSection",  # octetArray
+    314: "ipPayloadPacketSection",  # octetArray
+    315: "dataLinkFrameSection",  # octetArray
+    316: "mplsLabelStackSection",  # octetArray
+    317: "mplsPayloadPacketSection",  # octetArray
+    318: "selectorIdTotalPktsObserved",  # unsigned64
+    319: "selectorIdTotalPktsSelected",  # unsigned64
+    320: "absoluteError",  # float64
+    321: "relativeError",  # float64
+    322: "observationTimeSeconds",  # dateTimeSeconds
+    323: "observationTimeMilliseconds",  # dateTimeMilliseconds
+    324: "observationTimeMicroseconds",  # dateTimeMicroseconds
+    325: "observationTimeNanoseconds",  # dateTimeNanoseconds
+    326: "digestHashValue",  # unsigned64
+    327: "hashIPPayloadOffset",  # unsigned64
+    328: "hashIPPayloadSize",  # unsigned64
+    329: "hashOutputRangeMin",  # unsigned64
+    330: "hashOutputRangeMax",  # unsigned64
+    331: "hashSelectedRangeMin",  # unsigned64
+    332: "hashSelectedRangeMax",  # unsigned64
+    333: "hashDigestOutput",  # boolean
+    334: "hashInitialiserValue",  # unsigned64
+    335: "selectorName",  # string
+    336: "upperCILimit",  # float64
+    337: "lowerCILimit",  # float64
+    338: "confidenceLevel",  # float64
+    339: "informationElementDataType",  # unsigned8
+    340: "informationElementDescription",  # string
+    341: "informationElementName",  # string
+    342: "informationElementRangeBegin",  # unsigned64
+    343: "informationElementRangeEnd",  # unsigned64
+    344: "informationElementSemantics",  # unsigned8
+    345: "informationElementUnits",  # unsigned16
+    346: "privateEnterpriseNumber",  # unsigned32
+    347: "virtualStationInterfaceId",  # octetArray
+    348: "virtualStationInterfaceName",  # string
+    349: "virtualStationUUID",  # octetArray
+    350: "virtualStationName",  # string
+    351: "layer2SegmentId",  # unsigned64
+    352: "layer2OctetDeltaCount",  # unsigned64
+    353: "layer2OctetTotalCount",  # unsigned64
+    354: "ingressUnicastPacketTotalCount",  # unsigned64
+    355: "ingressMulticastPacketTotalCount",  # unsigned64
+    356: "ingressBroadcastPacketTotalCount",  # unsigned64
+    357: "egressUnicastPacketTotalCount",  # unsigned64
+    358: "egressBroadcastPacketTotalCount",  # unsigned64
+    359: "monitoringIntervalStartMilliSeconds",  # dateTimeMilliseconds
+    360: "monitoringIntervalEndMilliSeconds",  # dateTimeMilliseconds
+    361: "portRangeStart",  # unsigned16
+    362: "portRangeEnd",  # unsigned16
+    363: "portRangeStepSize",  # unsigned16
+    364: "portRangeNumPorts",  # unsigned16
+    365: "staMacAddress",  # macAddress
+    366: "staIPv4Address",  # ipv4Address
+    367: "wtpMacAddress",  # macAddress
+    368: "ingressInterfaceType",  # unsigned32
+    369: "egressInterfaceType",  # unsigned32
+    370: "rtpSequenceNumber",  # unsigned16
+    371: "userName",  # string
+    372: "applicationCategoryName",  # string
+    373: "applicationSubCategoryName",  # string
+    374: "applicationGroupName",  # string
+    375: "originalFlowsPresent",  # unsigned64
+    376: "originalFlowsInitiated",  # unsigned64
+    377: "originalFlowsCompleted",  # unsigned64
+    378: "distinctCountOfSourceIPAddress",  # unsigned64
+    379: "distinctCountOfDestinationIPAddress",  # unsigned64
+    380: "distinctCountOfSourceIPv4Address",  # unsigned32
+    381: "distinctCountOfDestinationIPv4Address",  # unsigned32
+    382: "distinctCountOfSourceIPv6Address",  # unsigned64
+    383: "distinctCountOfDestinationIPv6Address",  # unsigned64
+    384: "valueDistributionMethod",  # unsigned8
+    385: "rfc3550JitterMilliseconds",  # unsigned32
+    386: "rfc3550JitterMicroseconds",  # unsigned32
+    387: "rfc3550JitterNanoseconds",  # unsigned32
+    388: "dot1qDEI",  # boolean
+    389: "dot1qCustomerDEI",  # boolean
+    390: "flowSelectorAlgorithm",  # unsigned16
+    391: "flowSelectedOctetDeltaCount",  # unsigned64
+    392: "flowSelectedPacketDeltaCount",  # unsigned64
+    393: "flowSelectedFlowDeltaCount",  # unsigned64
+    394: "selectorIDTotalFlowsObserved",  # unsigned64
+    395: "selectorIDTotalFlowsSelected",  # unsigned64
+    396: "samplingFlowInterval",  # unsigned64
+    397: "samplingFlowSpacing",  # unsigned64
+    398: "flowSamplingTimeInterval",  # unsigned64
+    399: "flowSamplingTimeSpacing",  # unsigned64
+    400: "hashFlowDomain",  # unsigned16
+    401: "transportOctetDeltaCount",  # unsigned64
+    402: "transportPacketDeltaCount",  # unsigned64
+    403: "originalExporterIPv4Address",  # ipv4Address
+    404: "originalExporterIPv6Address",  # ipv6Address
+    405: "originalObservationDomainId",  # unsigned32
+    406: "intermediateProcessId",  # unsigned32
+    407: "ignoredDataRecordTotalCount",  # unsigned64
+    408: "dataLinkFrameType",  # unsigned16
+    409: "sectionOffset",  # unsigned16
+    410: "sectionExportedOctets",  # unsigned16
+    411: "dot1qServiceInstanceTag",  # octetArray
+    412: "dot1qServiceInstanceId",  # unsigned32
+    413: "dot1qServiceInstancePriority",  # unsigned8
+    414: "dot1qCustomerSourceMacAddress",  # macAddress
+    415: "dot1qCustomerDestinationMacAddress",  # macAddress
+    416: "",  #
+    417: "postLayer2OctetDeltaCount",  # unsigned64
+    418: "postMCastLayer2OctetDeltaCount",  # unsigned64
+    419: "",  #
+    420: "postLayer2OctetTotalCount",  # unsigned64
+    421: "postMCastLayer2OctetTotalCount",  # unsigned64
+    422: "minimumLayer2TotalLength",  # unsigned64
+    423: "maximumLayer2TotalLength",  # unsigned64
+    424: "droppedLayer2OctetDeltaCount",  # unsigned64
+    425: "droppedLayer2OctetTotalCount",  # unsigned64
+    426: "ignoredLayer2OctetTotalCount",  # unsigned64
+    427: "notSentLayer2OctetTotalCount",  # unsigned64
+    428: "layer2OctetDeltaSumOfSquares",  # unsigned64
+    429: "layer2OctetTotalSumOfSquares",  # unsigned64
+    430: "layer2FrameDeltaCount",  # unsigned64
+    431: "layer2FrameTotalCount",  # unsigned64
+    432: "pseudoWireDestinationIPv4Address",  # ipv4Address
+    433: "ignoredLayer2FrameTotalCount",  # unsigned64
+    434: "mibObjectValueInteger",  # signed32
+    435: "mibObjectValueOctetString",  # octetArray
+    436: "mibObjectValueOID",  # octetArray
+    437: "mibObjectValueBits",  # octetArray
+    438: "mibObjectValueIPAddress",  # ipv4Address
+    439: "mibObjectValueCounter",  # unsigned64
+    440: "mibObjectValueGauge",  # unsigned32
+    441: "mibObjectValueTimeTicks",  # unsigned32
+    442: "mibObjectValueUnsigned",  # unsigned32
+    443: "mibObjectValueTable",  # subTemplateList
+    444: "mibObjectValueRow",  # subTemplateList
+    445: "mibObjectIdentifier",  # octetArray
+    446: "mibSubIdentifier",  # unsigned32
+    447: "mibIndexIndicator",  # unsigned64
+    448: "mibCaptureTimeSemantics",  # unsigned8
+    449: "mibContextEngineID",  # octetArray
+    450: "mibContextName",  # string
+    451: "mibObjectName",  # string
+    452: "mibObjectDescription",  # string
+    453: "mibObjectSyntax",  # string
+    454: "mibModuleName",  # string
+    455: "mobileIMSI",  # string
+    456: "mobileMSISDN",  # string
+    457: "httpStatusCode",  # unsigned16
+    458: "sourceTransportPortsLimit",  # unsigned16
+    459: "httpRequestMethod",  # string
+    460: "httpRequestHost",  # string
+    461: "httpRequestTarget",  # string
+    462: "httpMessageVersion",  # string
+    463: "natInstanceID",  # unsigned32
+    464: "internalAddressRealm",  # octetArray
+    465: "externalAddressRealm",  # octetArray
+    466: "natQuotaExceededEvent",  # unsigned32
+    467: "natThresholdEvent",  # unsigned32
+    468: "httpUserAgent",  # string
+    469: "httpContentType",  # string
+    470: "httpReasonPhrase",  # string
+    471: "maxSessionEntries",  # unsigned32
+    472: "maxBIBEntries",  # unsigned32
+    473: "maxEntriesPerUser",  # unsigned32
+    474: "maxSubscribers",  # unsigned32
+    475: "maxFragmentsPendingReassembly",  # unsigned32
+    476: "addressPoolHighThreshold",  # unsigned32
+    477: "addressPoolLowThreshold",  # unsigned32
+    478: "addressPortMappingHighThreshold",  # unsigned32
+    479: "addressPortMappingLowThreshold",  # unsigned32
+    480: "addressPortMappingPerUserHighThreshold",  # unsigned32
+    481: "globalAddressMappingHighThreshold",  # unsigned32
+    482: "vpnIdentifier",  # octetArray
+    483: "bgpCommunity",  # unsigned32
+    484: "bgpSourceCommunityList",  # basicList
+    485: "bgpDestinationCommunityList",  # basicList
+    486: "bgpExtendedCommunity",  # octetArray
+    487: "bgpSourceExtendedCommunityList",  # basicList
+    488: "bgpDestinationExtendedCommunityList",  # basicList
+    489: "bgpLargeCommunity",  # octetArray
+    490: "bgpSourceLargeCommunityList",  # basicList
+    491: "bgpDestinationLargeCommunityList",  # basicList
 }
 
 
