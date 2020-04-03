@@ -13,6 +13,7 @@ import sys
 import unittest
 
 from tests.lib import *
+from tests.test_netflow import PACKET_V9_TEMPLATE, PACKETS_V9
 
 
 class TestFlowExportAnalyzer(unittest.TestCase):
