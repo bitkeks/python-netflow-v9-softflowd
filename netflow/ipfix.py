@@ -581,7 +581,7 @@ class IPFIXDataRecord:
     """
 
     def __init__(self, data, template):
-        self.fields = []
+        self.fields = set()
         offset = 0
         unpacker = "!"
 
@@ -611,7 +611,7 @@ class IPFIXDataRecord:
             if field_length == 16:
                 # 16 bytes fields are not converted to int by struct.unpack
                 value = int.from_bytes(value, "big")
-            self.fields.append((field_type, value))
+            self.fields.add((field_type, value))
 
         self._length = offset
         self.__dict__.update(self.data)

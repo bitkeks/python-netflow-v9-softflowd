@@ -32,7 +32,7 @@ def emit_packets(packets, delay=0.0001):
     sock.close()
 
 
-def send_recv_packets(packets, delay=0.0001) -> (list, float, float):
+def send_recv_packets(packets, delay=0.0001, store_packets=-1) -> (list, float, float):
     """Starts a listener, send packets, receives packets
 
     returns a tuple: ([(ts, export), ...], time_started_sending, time_stopped_sending)
@@ -45,13 +45,26 @@ def send_recv_packets(packets, delay=0.0001) -> (list, float, float):
     listener.start()
 
     pkts = []
+    to_pad = 0
     while True:
         try:
-            pkts.append(listener.get(timeout=0.5))
+            packet = listener.get(timeout=0.5)
+            if -1 == store_packets or store_packets > 0:
+                # Case where a programm yields from the queue and stores all packets.
+                pkts.append(packet)
+                if store_packets != -1 and len(pkts) > store_packets:
+                    to_pad += len(pkts)  # Hack for testing
+                    pkts.clear()
+            else:
+                # Performance measurements for cases where yielded objects are processed
+                # immediatelly instead of stored. Add empty tuple to retain counting possibility.
+                pkts.append(())
         except queue.Empty:
             break
     listener.stop()
     listener.join()
+    if to_pad > 0:
+        pkts = [()] * to_pad + pkts
     return pkts, tstart, tend
 
 

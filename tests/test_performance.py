@@ -9,7 +9,9 @@ Licensed under MIT License. See LICENSE.
 import io
 import linecache
 import cProfile
+import pathlib
 import pstats
+import resource
 import tracemalloc
 import unittest
 from pstats import SortKey
@@ -35,7 +37,7 @@ class TestNetflowIPFIXPerformance(unittest.TestCase):
         """
         tracemalloc.stop()
 
-    def _memory_of_version(self, version) -> tracemalloc.Snapshot:
+    def _memory_of_version(self, version, store_packets=500) -> tracemalloc.Snapshot:
         """
         Create memory snapshot of collector run with packets of version :version:
         :param version:
@@ -43,7 +45,8 @@ class TestNetflowIPFIXPerformance(unittest.TestCase):
         """
         if not tracemalloc.is_tracing():
             raise RuntimeError
-        pkts, t1, t2 = send_recv_packets(generate_packets(NUM_PACKETS_PERFORMANCE, version))
+        pkts, t1, t2 = send_recv_packets(generate_packets(NUM_PACKETS_PERFORMANCE, version),
+                                         store_packets=store_packets)
         self.assertEqual(len(pkts), NUM_PACKETS_PERFORMANCE)
         snapshot = tracemalloc.take_snapshot()
         del pkts
@@ -121,11 +124,22 @@ class TestNetflowIPFIXPerformance(unittest.TestCase):
     def test_memory_ipfix(self):
         """
         Test memory usage of the collector with IPFIX packets.
+        Three iterations are done with different amounts of packets to be stored.
+        With this approach, increased usage of memory can be captured when the ExportPacket objects are not deleted.
         :return:
         """
-        snapshot_ipfix = self._memory_of_version(10)
-        self._print_memory_statistics(snapshot_ipfix, "filename")
-        self._print_memory_statistics(snapshot_ipfix, "lineno")
+        for store_pkts in [0, 500, -1]:  # -1 is compatibility value for "store all"
+            snapshot_ipfix = self._memory_of_version(10, store_packets=store_pkts)
+
+            # TODO: this seems misleading, maybe reads the memory of the whole testing process?
+            # system_memory = pathlib.Path("/proc/self/statm").read_text()
+            # pagesize = resource.getpagesize()
+            # print("Total RSS memory used: {:.1f} KiB".format(int(system_memory.split()[1]) * pagesize // 1024.))
+
+            self._print_memory_statistics(snapshot_ipfix, "filename")
+            if store_pkts == -1:
+                # very verbose and most interesting in iteration with all ExportPackets being stored in memory
+                self._print_memory_statistics(snapshot_ipfix, "lineno")
 
     def test_memory_v9(self):
         """
@@ -145,7 +159,7 @@ class TestNetflowIPFIXPerformance(unittest.TestCase):
         """
         profile = cProfile.Profile()
         profile.enable(subcalls=True, builtins=True)
-        pkts, t1, t2 = send_recv_packets(generate_packets(NUM_PACKETS_PERFORMANCE, 10), delay=0)
+        pkts, t1, t2 = send_recv_packets(generate_packets(NUM_PACKETS_PERFORMANCE, 10), delay=0, store_packets=500)
         self.assertEqual(len(pkts), NUM_PACKETS_PERFORMANCE)
         profile.disable()
 

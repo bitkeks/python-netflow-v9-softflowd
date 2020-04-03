@@ -97,7 +97,7 @@ class ThreadedNetFlowListener(threading.Thread):
         self._shutdown = threading.Event()
         super().__init__()
 
-    def get(self, block=True, timeout=None):
+    def get(self, block=True, timeout=None) -> ParsedPacket:
         """Get a processed flow.
 
         If optional args 'block' is true and 'timeout' is None (the default),
