@@ -18,7 +18,7 @@ from pstats import SortKey
 
 from tests.lib import send_recv_packets, generate_packets
 
-NUM_PACKETS_PERFORMANCE = 5000
+NUM_PACKETS_PERFORMANCE = 2000
 
 
 class TestNetflowIPFIXPerformance(unittest.TestCase):
@@ -66,7 +66,6 @@ class TestNetflowIPFIXPerformance(unittest.TestCase):
 
         stats = snapshot.statistics(key)
         if key == "lineno":
-            print("\n## Detailed memory of traceback, based on lines ##")
             for idx, stat in enumerate(stats[:topx]):
                 frame = stat.traceback[0]
                 print("\n{idx:02d}: {filename}:{lineno} {size:.1f} KiB, count {count}".format(
@@ -83,13 +82,11 @@ class TestNetflowIPFIXPerformance(unittest.TestCase):
                 for lidx, stat in enumerate(lines):
                     print("   {}{}".format("> " if lidx == 3 else "| ", " " * lines_whitespaces.pop(0) + stat))
         elif key == "filename":
-            print("\n## Detailed memory by file ##")
             for idx, stat in enumerate(stats[:topx]):
                 frame = stat.traceback[0]
                 print("{idx:02d}: {filename:80s} {size:6.1f} KiB, count {count:5<d}".format(
                     idx=idx + 1, filename=frame.filename, size=stat.size / 1024, count=stat.count
                 ))
-        print("#" * 29 + "\n")
 
     def test_compare_memory(self):
         """
@@ -136,10 +133,30 @@ class TestNetflowIPFIXPerformance(unittest.TestCase):
             # pagesize = resource.getpagesize()
             # print("Total RSS memory used: {:.1f} KiB".format(int(system_memory.split()[1]) * pagesize // 1024.))
 
+            print("\nIPFIX memory usage with {} packets being stored".format(store_pkts))
             self._print_memory_statistics(snapshot_ipfix, "filename")
             if store_pkts == -1:
                 # very verbose and most interesting in iteration with all ExportPackets being stored in memory
+                print("\nTraceback for run with all packets being stored in memory")
                 self._print_memory_statistics(snapshot_ipfix, "lineno")
+
+    def test_memory_v1(self):
+        """
+        Test memory with NetFlow v1
+        :return:
+        """
+        snapshot_v1 = self._memory_of_version(1)
+        print("\nNetFlow v1 memory usage by file")
+        self._print_memory_statistics(snapshot_v1, "filename")
+
+    def test_memory_v5(self):
+        """
+        Test memory with NetFlow v5
+        :return:
+        """
+        snapshot_v5 = self._memory_of_version(5)
+        print("\nNetFlow v5 memory usage by file")
+        self._print_memory_statistics(snapshot_v5, "filename")
 
     def test_memory_v9(self):
         """
@@ -147,7 +164,9 @@ class TestNetflowIPFIXPerformance(unittest.TestCase):
         :return:
         """
         snapshot_v9 = self._memory_of_version(9)
+        print("\nNetFlow v9 memory usage by file")
         self._print_memory_statistics(snapshot_v9, "filename")
+        print("\nNetFlow v9 memory usage by line")
         self._print_memory_statistics(snapshot_v9, "lineno")
 
     @unittest.skip("Does not work as expected due to threading")
