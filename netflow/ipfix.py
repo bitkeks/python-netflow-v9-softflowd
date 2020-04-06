@@ -10,7 +10,7 @@ Licensed under MIT License. See LICENSE.
 from collections import namedtuple
 import functools
 import struct
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Dict
 
 FieldType = namedtuple("FieldType", ["id", "name", "type"])
 DataType = namedtuple("DataType", ["type", "unpack_format"])
@@ -487,6 +487,43 @@ class IPFIXFieldTypes:
         (491, "bgpDestinationLargeCommunityList", "basicList"),
     ]
 
+    @classmethod
+    @functools.lru_cache
+    def by_id(cls, id_: int) -> Optional[FieldType]:
+        for item in cls.iana_field_types:
+            if item[0] == id_:
+                return FieldType(*item)
+        return None
+
+    @classmethod
+    @functools.lru_cache
+    def by_name(cls, key: str) -> Optional[FieldType]:
+        for item in cls.iana_field_types:
+            if item[1] == key:
+                return FieldType(*item)
+        return None
+
+    @classmethod
+    @functools.lru_cache
+    def get_type_unpack(cls, key: Union[int, str]) -> Optional[DataType]:
+        """
+        This method covers the mapping from a field type to a struct.unpack format string.
+        BLOCKED: due to Reduced-Size Encoding, fields may be exported with a smaller length than defined in
+        the standard. Because of this mismatch, the parser in `IPFIXDataRecord.__init__` cannot use this method.
+        :param key:
+        :return:
+        """
+        item = None
+        if type(key) == int:
+            item = cls.by_id(key)
+        elif type(key) == str:
+            item = cls.by_name(key)
+        if not item:
+            return None
+        return IPFIXDataTypes.by_name(item.type)
+
+
+class IPFIXDataTypes:
     # Source: https://www.iana.org/assignments/ipfix/ipfix-information-element-data-types.csv
     # Reference: https://tools.ietf.org/html/rfc7011
     iana_data_types = [
@@ -518,58 +555,64 @@ class IPFIXFieldTypes:
     ]
 
     @classmethod
-    def data_type_is_signed(cls, type_: Union[DataType, str]) -> bool:
-        t = type_
-        if type(type_) == DataType:
-            t = type_.type
-        return t in ["signed8", "signed16", "signed32", "signed64"]
-
-    @classmethod
-    def data_type_is_bytes(cls, type_: Union[DataType, str]) -> bool:
-        t = type_
-        if type(type_) == DataType:
-            t = type_.type
-        return t in ["octetArray", "macAddress", "string", "ipv4Address", "ipv6Address"]
-
-    @classmethod
     @functools.lru_cache
-    def by_id(cls, id_: int) -> Optional[FieldType]:
-        for item in cls.iana_field_types:
-            if item[0] == id_:
-                return FieldType(*item)
-        return None
-
-    @classmethod
-    @functools.lru_cache
-    def by_name(cls, key: str) -> Optional[FieldType]:
-        for item in cls.iana_field_types:
-            if item[1] == key:
-                return FieldType(*item)
-        return None
-
-    @classmethod
-    @functools.lru_cache
-    def get_type_unpack(cls, key: Union[int, str]) -> Optional[DataType]:
+    def by_name(cls, key: str) -> Optional[DataType]:
         """
-        This method should cover the mapping from a field type to a struct.unpack format string.
-        BUT: tests with softflowd v1.0.0 showed, that the template field lengths exported by softflowd differ
-        in some cases. Example: a field has type unsigned32, meaning 4 bytes, but the template states it is
-        only 2 bytes long.
-        Because of this mismatch, the parser in `IPFIXDataRecord.__init__` cannot use this method.
+        Get DataType by name if found, else None.
         :param key:
         :return:
         """
-        item = None
-        if type(key) == int:
-            item = cls.by_id(key)
-        elif type(key) == str:
-            item = cls.by_name(key)
-        if not item:
-            return None
         for t in cls.iana_data_types:
-            if t[0] == item.type:
+            if t[0] == key:
                 return DataType(*t)
         return None
+
+    @classmethod
+    def is_signed(cls, dt: Union[DataType, str]) -> bool:
+        """
+        Check if a data type is meant to be a signed integer.
+        :param dt:
+        :return:
+        """
+        fields = ["signed8", "signed16", "signed32", "signed64"]
+        if type(dt) == DataType:
+            return dt.type in fields
+        return dt in fields
+
+    @classmethod
+    def is_float(cls, dt: Union[DataType, str]) -> bool:
+        """
+        Check if data type is meant to be a float.
+        :param dt:
+        :return:
+        """
+        fields = ["float32", "float64"]
+        if type(dt) == DataType:
+            return dt.type in fields
+        return dt in fields
+
+    @classmethod
+    def is_bytes(cls, dt: Union[DataType, str]) -> bool:
+        """
+        Check if a data type is meant to be parsed as bytes.
+        :param dt:
+        :return:
+        """
+        fields = ["octetArray", "string",
+                  "macAddress", "ipv4Address", "ipv6Address",
+                  "dateTimeMicroseconds", "dateTimeNanoseconds"]
+        if type(dt) == DataType:
+            return dt.type in fields
+        return dt in fields
+
+    @classmethod
+    def to_fitting_object(cls, field):
+        """
+        Could implement conversion to IPv4Address etc.
+        :param field:
+        :return:
+        """
+        pass
 
 
 class IPFIXMalformedRecord(Exception):
@@ -686,8 +729,7 @@ class IPFIXDataRecord:
             field_length = field.length
             offset += field_length
 
-            # Here, IPFIXFieldTypes.get_type_unpack could be used, but it seems there is a mismatch
-            # of field lengths between softflowd templates and IANA standards.
+            # Here, reduced-size encoding of fields blocks the usage of IPFIXFieldTypes.get_type_unpack.
             # See comment in IPFIXFieldTypes.get_type_unpack for more information.
 
             field_type: FieldType = IPFIXFieldTypes.by_id(field_type_id)
@@ -696,25 +738,27 @@ class IPFIXDataRecord:
                 # which is not standardized by IANA.
                 raise NotImplementedError("Field type with ID {} is not implemented".format(field_type_id))
 
-            data_type: str = field_type.type
+            datatype: str = field_type.type
             discovered_fields.append((field_type.name, field_type_id))
-            if IPFIXFieldTypes.data_type_is_bytes(data_type):
+
+            # Catch fields which are meant to be raw bytes and skip the rest
+            if IPFIXDataTypes.is_bytes(datatype):
                 unpacker += "{}s".format(field_length)
                 continue
 
-            signed = IPFIXFieldTypes.data_type_is_signed(data_type)
+            # Go into int, uint, float types
+            issigned = IPFIXDataTypes.is_signed(datatype)
+            isfloat = IPFIXDataTypes.is_float(datatype)
+            assert not(all([issigned, isfloat]))  # signed int and float are exclusive
+
             if field_length == 1:
-                unpacker += "b" if signed else "B"
+                unpacker += "b" if issigned else "B"
             elif field_length == 2:
-                unpacker += "h" if signed else "H"
+                unpacker += "h" if issigned else "H"
             elif field_length == 4:
-                unpacker += "i" if signed else "I"
-            elif field_length == 6:  # MAC address, int->bytes with (value).to_bytes(6, "big")
-                unpacker += "6s"
+                unpacker += "i" if issigned else "f" if isfloat else "I"
             elif field_length == 8:
-                unpacker += "q" if signed else "Q"
-            elif field_length == 16:
-                unpacker += "16s"
+                unpacker += "q" if issigned else "d" if isfloat else "Q"
             else:
                 raise IPFIXTemplateError("Template field_length {} not handled in unpacker".format(field_length))
 
@@ -724,11 +768,20 @@ class IPFIXDataRecord:
         # Iterate through template again, but taking the unpacked values this time
         for index, ((field_type_name, field_type_id), value) in enumerate(zip(discovered_fields, pack)):
             if type(value) is bytes:
+                # Check if value is raw bytes, so no conversion happened in struct.unpack
                 if field_type_name in ["string"]:
                     value = str(value)
                 # TODO: handle octetArray (= does not have to be unicode encoded)
+                elif field_type_name in ["boolean"]:
+                    value = True if value == 1 else False  # 2 = false per RFC
+                elif field_type_name in ["dateTimeMicroseconds", "dateTimeNanoseconds"]:
+                    seconds = value[:4]
+                    fraction = value[4:]
+                    value = (int.from_bytes(seconds, "big"), int.from_bytes(fraction, "big"))
                 else:
                     value = int.from_bytes(value, "big")
+            # If not bytes, struct.unpack already did necessary conversions (int, float...),
+            # value can be used as-is.
             self.fields.add((field_type_id, value))
 
         self._length = offset
@@ -751,7 +804,7 @@ class IPFIXSet:
     """A set containing the set header and a collection of records (one of templates, options, data)
     """
 
-    def __init__(self, data, templates):
+    def __init__(self, data: bytes, templates):
         self.header = IPFIXSetHeader(data[0:IPFIXSetHeader.size])
         self.records = []
         self._templates = {}
@@ -831,7 +884,7 @@ class IPFIXExportPacket:
     """IPFIX export packet with header, templates, options and data flowsets
     """
 
-    def __init__(self, data, templates):
+    def __init__(self, data: bytes, templates: Dict[int, list]):
         self.header = IPFIXHeader(data[:IPFIXHeader.size])
         self.sets = []
         self._contains_new_templates = False
@@ -875,9 +928,16 @@ class IPFIXExportPacket:
         )
 
 
-def parse_fields(data, count: int) -> (list, int):
-    offset = 0
-    fields = []
+def parse_fields(data: bytes, count: int) -> (list, int):
+    """
+    Parse fields from a bytes stream, based on the count of fields.
+    If the field is an enterprise field or not will be determinded in this function.
+    :param data:
+    :param count:
+    :return: List of fields and the new offset.
+    """
+    offset: int = 0
+    fields: List[Union[TemplateField, TemplateFieldEnterprise]] = []
     for ctr in range(count):
         if data[offset] & 1 << 7 != 0:  # enterprise flag set
             pack = struct.unpack("!HHI", data[offset:offset + 8])

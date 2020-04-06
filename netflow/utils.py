@@ -8,6 +8,7 @@ Licensed under MIT License. See LICENSE.
 """
 
 import struct
+from typing import Union
 
 from .v1 import V1ExportPacket
 from .v5 import V5ExportPacket
@@ -30,7 +31,7 @@ def get_export_version(data):
     return struct.unpack('!H', data[:2])[0]
 
 
-def parse_packet(data, templates=None):
+def parse_packet(data: Union[str, bytes], templates=None):
     if templates is None:  # compatibility for v1 and v5
         templates = {}
 

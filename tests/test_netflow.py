@@ -12,8 +12,9 @@ import ipaddress
 import random
 import unittest
 
-from tests.lib import send_recv_packets, NUM_PACKETS, PACKET_INVALID, PACKET_V1, PACKET_V5, PACKET_V9_TEMPLATE, \
-    PACKET_V9_TEMPLATE_MIXED, PACKETS_V9
+from tests.lib import send_recv_packets, NUM_PACKETS, \
+    PACKET_INVALID, PACKET_V1, PACKET_V5, \
+    PACKET_V9_TEMPLATE, PACKET_V9_TEMPLATE_MIXED, PACKETS_V9
 
 
 class TestFlowExportNetflow(unittest.TestCase):
@@ -150,7 +151,3 @@ class TestFlowExportNetflow(unittest.TestCase):
         for packet in pkts:
             total_flows += len(packet.export.flows)
         self.assertEqual(total_flows, 8 + 12 + 12 + 12)
-
-
-if __name__ == '__main__':
-    unittest.main()
