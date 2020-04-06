@@ -814,15 +814,21 @@ class IPFIXSet:
             while offset < self.header.length:  # length of whole set
                 template_record = IPFIXTemplateRecord(data[offset:])
                 self.records.append(template_record)
-                self._templates[template_record.template_id] = template_record.fields
+                if template_record.field_count == 0:
+                    self._templates[template_record.template_id] = None
+                else:
+                    self._templates[template_record.template_id] = template_record.fields
                 offset += template_record.get_length()
 
         elif self.header.set_id == 3:  # options template
             while offset < self.header.length:
                 optionstemplate_record = IPFIXOptionsTemplateRecord(data[offset:])
                 self.records.append(optionstemplate_record)
-                self._templates[optionstemplate_record.template_id] = \
-                    optionstemplate_record.scope_fields + optionstemplate_record.fields
+                if optionstemplate_record.field_count == 0:
+                    self._templates[optionstemplate_record.template_id] = None
+                else:
+                    self._templates[optionstemplate_record.template_id] = \
+                        optionstemplate_record.scope_fields + optionstemplate_record.fields
                 offset += optionstemplate_record.get_length()
 
         elif self.header.set_id >= 256:  # data set, set_id is template id
@@ -883,7 +889,6 @@ class IPFIXSetHeader:
 class IPFIXExportPacket:
     """IPFIX export packet with header, templates, options and data flowsets
     """
-
     def __init__(self, data: bytes, templates: Dict[int, list]):
         self.header = IPFIXHeader(data[:IPFIXHeader.size])
         self.sets = []
@@ -900,6 +905,10 @@ class IPFIXExportPacket:
             if new_set.is_template:
                 self._contains_new_templates = True
                 self._templates.update(new_set.templates)
+                for template_id, template_fields in self._templates.items():
+                    if template_fields is None:
+                        # Template withdrawal
+                        del self._templates[template_id]
             elif new_set.is_data:
                 self._flows += new_set.records
 

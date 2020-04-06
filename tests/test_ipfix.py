@@ -7,6 +7,7 @@ Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
 Licensed under MIT License. See LICENSE.
 """
 # TODO: tests with 500 packets fail with delay=0. Probably a problem with UDP sockets buffer
+# TODO: add test for template withdrawal
 
 import ipaddress
 import unittest
