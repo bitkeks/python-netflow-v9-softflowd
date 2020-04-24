@@ -3,24 +3,22 @@
 """
 This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 
-Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2016-2020 Dominik Pataky <software+pynetflow@dpataky.eu>
 Licensed under MIT License. See LICENSE.
 """
+import cProfile
 import io
 import linecache
-import cProfile
-import pathlib
 import pstats
-import resource
 import tracemalloc
 import unittest
-from pstats import SortKey
 
 from tests.lib import send_recv_packets, generate_packets
 
 NUM_PACKETS_PERFORMANCE = 2000
 
 
+@unittest.skip("Not necessary in functional tests, used as analysis tool")
 class TestNetflowIPFIXPerformance(unittest.TestCase):
     def setUp(self) -> None:
         """
@@ -69,7 +67,7 @@ class TestNetflowIPFIXPerformance(unittest.TestCase):
             for idx, stat in enumerate(stats[:topx]):
                 frame = stat.traceback[0]
                 print("\n{idx:02d}: {filename}:{lineno} {size:.1f} KiB, count {count}".format(
-                    idx=idx+1, filename=frame.filename, lineno=frame.lineno, size=stat.size / 1024, count=stat.count
+                    idx=idx + 1, filename=frame.filename, lineno=frame.lineno, size=stat.size / 1024, count=stat.count
                 ))
 
                 lines = []
@@ -182,7 +180,7 @@ class TestNetflowIPFIXPerformance(unittest.TestCase):
         self.assertEqual(len(pkts), NUM_PACKETS_PERFORMANCE)
         profile.disable()
 
-        for sort_by in [SortKey.CUMULATIVE, SortKey.CALLS]:
+        for sort_by in ['cumulative', 'calls']:
             s = io.StringIO()
             ps = pstats.Stats(profile, stream=s)
             ps.sort_stats(sort_by).print_stats("netflow")

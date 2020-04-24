@@ -7,16 +7,16 @@ with open("README.md", "r") as fh:
 
 setup(
     name='netflow',
-    version='0.10.2',
+    version='0.10.3',
     description='NetFlow v1, v5, v9 and IPFIX tool suite implemented in Python 3',
     long_description=long_description,
     long_description_content_type='text/markdown',
     author='Dominik Pataky',
-    author_email='dev@bitkeks.eu',
+    author_email='software+pynetflow@dpataky.eu',
     url='https://github.com/bitkeks/python-netflow-v9-softflowd',
     packages=["netflow"],
     license='MIT',
-    python_requires='>=3.5',
+    python_requires='>=3.5.3',
     keywords='netflow ipfix collector parser',
     classifiers=[
         "Programming Language :: Python :: 3",

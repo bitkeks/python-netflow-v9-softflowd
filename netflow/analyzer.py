@@ -4,14 +4,12 @@
 Reference analyzer script for NetFlow Python package.
 This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 
-Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2016-2020 Dominik Pataky <software+pynetflow@dpataky.eu>
 Licensed under MIT License. See LICENSE.
 """
 
 import argparse
-from collections import namedtuple
 import contextlib
-from datetime import datetime
 import functools
 import gzip
 import ipaddress
@@ -20,7 +18,8 @@ import logging
 import os.path
 import socket
 import sys
-
+from collections import namedtuple
+from datetime import datetime
 
 IP_PROTOCOLS = {
     1: "ICMP",
@@ -65,10 +64,10 @@ def human_size(size_bytes):
         return "%dB" % size_bytes
     elif size_bytes / 1024. < 1024:
         return "%.2fK" % (size_bytes / 1024.)
-    elif size_bytes / 1024.**2 < 1024:
-        return "%.2fM" % (size_bytes / 1024.**2)
+    elif size_bytes / 1024. ** 2 < 1024:
+        return "%.2fM" % (size_bytes / 1024. ** 2)
     else:
-        return "%.2fG" % (size_bytes / 1024.**3)
+        return "%.2fG" % (size_bytes / 1024. ** 3)
 
 
 def human_duration(seconds):
@@ -78,7 +77,7 @@ def human_duration(seconds):
         return "%d sec" % seconds
     if seconds / 60 > 60:
         # hours
-        return "%d:%02d.%02d hours" % (seconds / 60**2, seconds % 60**2 / 60, seconds % 60)
+        return "%d:%02d.%02d hours" % (seconds / 60 ** 2, seconds % 60 ** 2 / 60, seconds % 60)
     # minutes
     return "%02d:%02d min" % (seconds / 60, seconds % 60)
 
@@ -90,6 +89,7 @@ class Connection:
     'src' describes the peer which sends more data towards the other. This
     does NOT have to mean that 'src' was the initiator of the connection.
     """
+
     def __init__(self, flow1, flow2):
         if not flow1 or not flow2:
             raise Exception("A connection requires two flows")
@@ -129,7 +129,7 @@ class Connection:
         if self.duration < 0:
             # 32 bit int has its limits. Handling overflow here
             # TODO: Should be handled in the collection phase
-            self.duration = (2**32 - src['FIRST_SWITCHED']) + src['LAST_SWITCHED']
+            self.duration = (2 ** 32 - src['FIRST_SWITCHED']) + src['LAST_SWITCHED']
 
     def __repr__(self):
         return "<Connection from {} to {}, size {}>".format(
@@ -298,25 +298,27 @@ if __name__ == "__main__":
                 continue
 
             if first_line:
-                print("{:19} | {:14} | {:8} | {:9} | {:7} | Involved hosts".format("Timestamp", "Service", "Size", "Duration", "Packets"))
+                print("{:19} | {:14} | {:8} | {:9} | {:7} | Involved hosts".format("Timestamp", "Service", "Size",
+                                                                                   "Duration", "Packets"))
                 print("-" * 100)
                 first_line = False
 
             print("{timestamp} | {service:<14} | {size:8} | {duration:9} | {packets:7} | "
-                  "Between {src_host} ({src}) and {dest_host} ({dest})" \
+                  "Between {src_host} ({src}) and {dest_host} ({dest})"
                   .format(timestamp=timestamp, service=con.service.upper(), src_host=con.hostnames.src, src=con.src,
                           dest_host=con.hostnames.dest, dest=con.dest, size=con.human_size, duration=con.human_duration,
                           packets=con.total_packets))
 
     if skipped > 0:
-        print(f"{skipped} connections skipped, because they had less than {skipped_threshold} packets (this value can be set with the -p flag).")
+        print("{skipped} connections skipped, because they had less than {skipped_threshold} packets "
+              "(this value can be set with the -p flag).".format(skipped=skipped, skipped_threshold=skipped_threshold))
 
     if not args.verbose:
         # Exit here if no debugging session was wanted
         exit(0)
 
     if len(pending) > 0:
-        print(f"\nThere are {len(pending)} first_switched entries left in the pending dict!")
+        print("\nThere are {pending} first_switched entries left in the pending dict!".format(pending=len(pending)))
         all_noise = True
         for first_switched, flows in sorted(pending.items(), key=lambda x: x[0]):
             for peer, flow in flows.items():
@@ -327,19 +329,21 @@ if __name__ == "__main__":
 
                 src = flow.get("IPV4_SRC_ADDR") or flow.get("IPV6_SRC_ADDR")
                 src_host = resolve_hostname(src)
-                src_text = f"{src}" if src == src_host else f"{src_host} ({src})"
+                src_text = "{}".format(src) if src == src_host else "{} ({})".format(src_host, src)
                 dst = flow.get("IPV4_DST_ADDR") or flow.get("IPV6_DST_ADDR")
                 dst_host = resolve_hostname(dst)
-                dst_text = f"{dst}" if dst == dst_host else f"{dst_host} ({dst})"
+                dst_text = "{}".format(dst) if dst == dst_host else "{} ({})".format(dst_host, dst)
                 proto = flow["PROTOCOL"]
                 size = flow["IN_BYTES"]
                 packets = flow["IN_PKTS"]
                 src_port = flow.get("L4_SRC_PORT", 0)
                 dst_port = flow.get("L4_DST_PORT", 0)
 
-                print(f"From {src_text}:{src_port} to {dst_text}:{dst_port} with "
-                      f"proto {IP_PROTOCOLS.get(proto, 'UNKNOWN')} and size {human_size(size)}"
-                      f" ({packets} packets)")
+                print("From {src_text}:{src_port} to {dst_text}:{dst_port} with "
+                      "proto {proto} and size {size}"
+                      " ({packets} packets)".format(src_text=src_text, src_port=src_port, dst_text=dst_text,
+                                                    dst_port=dst_port, proto=IP_PROTOCOLS.get(proto, 'UNKNOWN'),
+                                                    size=human_size(size), packets=packets))
 
         if all_noise:
             print("They were all noise!")

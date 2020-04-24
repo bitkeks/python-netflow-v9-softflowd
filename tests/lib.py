@@ -4,7 +4,7 @@ This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 The test packets (defined below as hex streams) were extracted from "real"
 softflowd exports based on a sample PCAP capture file.
 
-Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2016-2020 Dominik Pataky <software+pynetflow@dpataky.eu>
 Licensed under MIT License. See LICENSE.
 """
 

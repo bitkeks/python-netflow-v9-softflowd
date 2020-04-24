@@ -4,12 +4,12 @@
 This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 Reference: https://tools.ietf.org/html/rfc7011
 
-Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2016-2020 Dominik Pataky <software+pynetflow@dpataky.eu>
 Licensed under MIT License. See LICENSE.
 """
-from collections import namedtuple
 import functools
 import struct
+from collections import namedtuple
 from typing import Optional, Union, List, Dict
 
 FieldType = namedtuple("FieldType", ["id", "name", "type"])
@@ -488,7 +488,7 @@ class IPFIXFieldTypes:
     ]
 
     @classmethod
-    @functools.lru_cache
+    @functools.lru_cache(maxsize=128)
     def by_id(cls, id_: int) -> Optional[FieldType]:
         for item in cls.iana_field_types:
             if item[0] == id_:
@@ -496,7 +496,7 @@ class IPFIXFieldTypes:
         return None
 
     @classmethod
-    @functools.lru_cache
+    @functools.lru_cache(maxsize=128)
     def by_name(cls, key: str) -> Optional[FieldType]:
         for item in cls.iana_field_types:
             if item[1] == key:
@@ -504,7 +504,7 @@ class IPFIXFieldTypes:
         return None
 
     @classmethod
-    @functools.lru_cache
+    @functools.lru_cache(maxsize=128)
     def get_type_unpack(cls, key: Union[int, str]) -> Optional[DataType]:
         """
         This method covers the mapping from a field type to a struct.unpack format string.
@@ -555,7 +555,7 @@ class IPFIXDataTypes:
     ]
 
     @classmethod
-    @functools.lru_cache
+    @functools.lru_cache(maxsize=128)
     def by_name(cls, key: str) -> Optional[DataType]:
         """
         Get DataType by name if found, else None.
@@ -732,13 +732,13 @@ class IPFIXDataRecord:
             # Here, reduced-size encoding of fields blocks the usage of IPFIXFieldTypes.get_type_unpack.
             # See comment in IPFIXFieldTypes.get_type_unpack for more information.
 
-            field_type: FieldType = IPFIXFieldTypes.by_id(field_type_id)
+            field_type = IPFIXFieldTypes.by_id(field_type_id)  # type: Optional[FieldType]
             if not field_type and type(field) is not TemplateFieldEnterprise:
                 # This should break, since the exporter seems to use a field identifier
                 # which is not standardized by IANA.
                 raise NotImplementedError("Field type with ID {} is not implemented".format(field_type_id))
 
-            datatype: str = field_type.type
+            datatype = field_type.type  # type: str
             discovered_fields.append((field_type.name, field_type_id))
 
             # Catch fields which are meant to be raw bytes and skip the rest
@@ -749,7 +749,7 @@ class IPFIXDataRecord:
             # Go into int, uint, float types
             issigned = IPFIXDataTypes.is_signed(datatype)
             isfloat = IPFIXDataTypes.is_float(datatype)
-            assert not(all([issigned, isfloat]))  # signed int and float are exclusive
+            assert not (all([issigned, isfloat]))  # signed int and float are exclusive
 
             if field_length == 1:
                 unpacker += "b" if issigned else "B"
@@ -833,7 +833,8 @@ class IPFIXSet:
 
         elif self.header.set_id >= 256:  # data set, set_id is template id
             while offset < self.header.length:
-                template: List[Union[TemplateField, TemplateFieldEnterprise]] = templates.get(self.header.set_id)
+                template = templates.get(
+                    self.header.set_id)  # type: List[Union[TemplateField, TemplateFieldEnterprise]]
                 if not template:
                     raise IPFIXTemplateNotRecognized
                 data_record = IPFIXDataRecord(data[offset:], template)
@@ -889,6 +890,7 @@ class IPFIXSetHeader:
 class IPFIXExportPacket:
     """IPFIX export packet with header, templates, options and data flowsets
     """
+
     def __init__(self, data: bytes, templates: Dict[int, list]):
         self.header = IPFIXHeader(data[:IPFIXHeader.size])
         self.sets = []
@@ -945,8 +947,8 @@ def parse_fields(data: bytes, count: int) -> (list, int):
     :param count:
     :return: List of fields and the new offset.
     """
-    offset: int = 0
-    fields: List[Union[TemplateField, TemplateFieldEnterprise]] = []
+    offset = 0
+    fields = []  # type: List[Union[TemplateField, TemplateFieldEnterprise]]
     for ctr in range(count):
         if data[offset] & 1 << 7 != 0:  # enterprise flag set
             pack = struct.unpack("!HHI", data[offset:offset + 8])

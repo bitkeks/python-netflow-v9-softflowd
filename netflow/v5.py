@@ -77,6 +77,7 @@ class V5Header:
 class V5ExportPacket:
     """The flow record holds the header and data flowsets.
     """
+
     def __init__(self, data):
         self.flows = []
         self.header = V5Header(data)
@@ -90,4 +91,4 @@ class V5ExportPacket:
 
     def __repr__(self):
         return "<ExportPacket v{} with {} records>".format(
-                self.header.version, self.header.count)
+            self.header.version, self.header.count)

@@ -4,23 +4,23 @@
 Reference collector script for NetFlow v1, v5, and v9 Python package.
 This file belongs to https://github.com/bitkeks/python-netflow-v9-softflowd.
 
-Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2016-2020 Dominik Pataky <software+pynetflow@dpataky.eu>
 Licensed under MIT License. See LICENSE.
 """
 import argparse
 import gzip
 import json
-from collections import namedtuple
-import queue
 import logging
+import queue
 import socket
 import socketserver
 import threading
 import time
+from collections import namedtuple
 
+from .ipfix import IPFIXTemplateNotRecognized
 from .utils import UnknownExportVersion, parse_packet
 from .v9 import V9TemplateNotRecognized
-from .ipfix import IPFIXTemplateNotRecognized
 
 RawPacket = namedtuple('RawPacket', ['ts', 'client', 'data'])
 ParsedPacket = namedtuple('ParsedPacket', ['ts', 'client', 'export'])
@@ -118,7 +118,7 @@ class ThreadedNetFlowListener(threading.Thread):
             while not self._shutdown.is_set():
                 try:
                     # 0.5s delay to limit CPU usage while waiting for new packets
-                    pkt: RawPacket = self.input.get(block=True, timeout=0.5)
+                    pkt = self.input.get(block=True, timeout=0.5)  # type: RawPacket
                 except queue.Empty:
                     continue
 

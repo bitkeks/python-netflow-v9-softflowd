@@ -8,7 +8,7 @@ Created for learning purposes and unsatisfying alternatives.
 Reference: https://www.cisco.com/en/US/technologies/tk648/tk362/technologies_white_paper09186a00800a3db9.html
 This script is specifically implemented in combination with softflowd. See https://github.com/djmdjm/softflowd
 
-Copyright 2016-2020 Dominik Pataky <dev@bitkeks.eu>
+Copyright 2016-2020 Dominik Pataky <software+pynetflow@dpataky.eu>
 Licensed under MIT License. See LICENSE.
 """
 
@@ -116,7 +116,8 @@ V9_FIELD_TYPES = {
     94: 'APPLICATION_DESCRIPTION',  # Application description
     95: 'APPLICATION_TAG',  # 8 bits of engine ID, followed by n bits of classification
     96: 'APPLICATION_NAME',  # Name associated with a classification
-    98: 'postipDiffServCodePoint',  # The value of a Differentiated Services Code Point (DSCP) encoded in the Differentiated Services Field, after modification
+    98: 'postipDiffServCodePoint',  # The value of a Differentiated Services Code Point (DSCP)
+                                    # encoded in the Differentiated Services Field, after modification
     99: 'replication_factor',  # Multicast replication factor
     100: 'DEPRECATED',  # DEPRECATED
     102: 'layer2packetSectionOffset',  # Layer 2 packet section offset. Potentially a generic offset
@@ -144,7 +145,7 @@ V9_FIELD_TYPES = {
     231: 'NF_F_FWD_FLOW_DELTA_BYTES',  # The delta number of bytes from source to destination
     232: 'NF_F_REV_FLOW_DELTA_BYTES',  # The delta number of bytes from destination to source
     33000: 'NF_F_INGRESS_ACL_ID',  # The input ACL that permitted or denied the flow
-    33001: 'NF_F_EGRESS_ACL_ID',  #  The output ACL that permitted or denied a flow
+    33001: 'NF_F_EGRESS_ACL_ID',  # The output ACL that permitted or denied a flow
     40000: 'NF_F_USERNAME',  # AAA username
 
     # PaloAlto PAN-OS 8.0
@@ -166,6 +167,7 @@ class V9DataRecord:
     dict).
     Should hold a 'data' dict with keys=field_type (integer) and value (in bytes).
     """
+
     def __init__(self):
         self.data = {}
 
@@ -178,6 +180,7 @@ class V9DataFlowSet:
     template. This template is referenced in the field 'flowset_id' of this
     DataFlowSet and must not be zero.
     """
+
     def __init__(self, data, templates):
         pack = struct.unpack('!HH', data[:4])
 
@@ -203,7 +206,7 @@ class V9DataFlowSet:
                 fkey = V9_FIELD_TYPES[field.field_type]
 
                 # The length of the value byte slice is defined in the template
-                dataslice = data[offset:offset+flen]
+                dataslice = data[offset:offset + flen]
 
                 # Better solution than struct.unpack with variable field length
                 fdata = 0
@@ -228,13 +231,14 @@ class V9DataFlowSet:
             self.flows.append(new_record)
 
     def __repr__(self):
-        return "<DataFlowSet with template {} of length {} holding {} flows>"\
+        return "<DataFlowSet with template {} of length {} holding {} flows>" \
             .format(self.template_id, self.length, len(self.flows))
 
 
 class V9TemplateField:
     """A field with type identifier and length.
     """
+
     def __init__(self, field_type, field_length):
         self.field_type = field_type  # integer
         self.field_length = field_length  # bytes
@@ -247,6 +251,7 @@ class V9TemplateField:
 class V9TemplateRecord:
     """A template record contained in a TemplateFlowSet.
     """
+
     def __init__(self, template_id, field_count, fields):
         self.template_id = template_id
         self.field_count = field_count
@@ -264,6 +269,7 @@ class V9TemplateFlowSet:
     identifiers of data types (eg "IP_SRC_ADDR", "PKTS"..). This way the flow
     sender can dynamically put together data flowsets.
     """
+
     def __init__(self, data):
         pack = struct.unpack('!HH', data[:4])
         self.flowset_id = pack[0]
@@ -274,7 +280,7 @@ class V9TemplateFlowSet:
 
         # Iterate through all template records in this template flowset
         while offset < self.length:
-            pack = struct.unpack('!HH', data[offset:offset+4])
+            pack = struct.unpack('!HH', data[offset:offset + 4])
             template_id = pack[0]
             field_count = pack[1]
 
@@ -282,7 +288,7 @@ class V9TemplateFlowSet:
             for field in range(field_count):
                 # Get all fields of this template
                 offset += 4
-                field_type, field_length = struct.unpack('!HH', data[offset:offset+4])
+                field_type, field_length = struct.unpack('!HH', data[offset:offset + 4])
                 if field_type not in V9_FIELD_TYPES:
                     field_type = 0  # Set field_type to UNKNOWN_FIELD_TYPE as fallback
                 field = V9TemplateField(field_type, field_length)
@@ -298,7 +304,7 @@ class V9TemplateFlowSet:
             offset += 4
 
     def __repr__(self):
-        return "<TemplateFlowSet with id {} of length {} containing templates: {}>"\
+        return "<TemplateFlowSet with id {} of length {} containing templates: {}>" \
             .format(self.flowset_id, self.length, self.templates.keys())
 
 
@@ -323,6 +329,7 @@ class V9Header:
 class V9ExportPacket:
     """The flow record holds the header and all template and data flowsets.
     """
+
     def __init__(self, data, templates):
         self.header = V9Header(data)
         self._templates = templates
@@ -332,7 +339,7 @@ class V9ExportPacket:
         offset = self.header.length
         skipped_flowsets_offsets = []
         while offset != len(data):
-            flowset_id = struct.unpack('!H', data[offset:offset+2])[0]
+            flowset_id = struct.unpack('!H', data[offset:offset + 2])[0]
             if flowset_id == 0:  # TemplateFlowSet always have id 0
                 tfs = V9TemplateFlowSet(data[offset:])
 
@@ -353,7 +360,7 @@ class V9ExportPacket:
                     offset += dfs.length
                 except V9TemplateNotRecognized:
                     # Could not be parsed, continue to check for templates
-                    length = struct.unpack("!H", data[offset+2:offset+4])[0]
+                    length = struct.unpack("!H", data[offset + 2:offset + 4])[0]
                     skipped_flowsets_offsets.append(offset)
                     offset += length
 
