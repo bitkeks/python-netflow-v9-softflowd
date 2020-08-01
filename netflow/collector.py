@@ -12,6 +12,7 @@ import gzip
 import json
 import logging
 import queue
+import signal
 import socket
 import socketserver
 import threading
@@ -113,6 +114,7 @@ class ThreadedNetFlowListener(threading.Thread):
     def run(self):
         # Process packets from the queue
         try:
+            # TODO: use per-client templates
             templates = {"netflow": {}, "ipfix": {}}
             to_retry = []
             while not self._shutdown.is_set():
@@ -171,11 +173,20 @@ class ThreadedNetFlowListener(threading.Thread):
 def get_export_packets(host: str, port: int) -> ParsedPacket:
     """A threaded generator that will yield ExportPacket objects until it is killed
     """
+    def handle_signal(s, f):
+        logger.debug("Received signal {}, raising StopIteration".format(s))
+        raise StopIteration
+    signal.signal(signal.SIGTERM, handle_signal)
+    signal.signal(signal.SIGINT, handle_signal)
+
     listener = ThreadedNetFlowListener(host, port)
     listener.start()
+
     try:
         while True:
             yield listener.get()
+    except StopIteration:
+        pass
     finally:
         listener.stop()
         listener.join()
