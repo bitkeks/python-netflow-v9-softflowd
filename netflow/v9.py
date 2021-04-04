@@ -15,7 +15,7 @@ Licensed under MIT License. See LICENSE.
 import ipaddress
 import struct
 
-__all__ = ["V9DataFlowSet", "V9DataRecord", "V9ExportPacket", "V9Header", "V9TemplateField",
+__all__ = ["V9DataFlowSet", "V9DataRecord", "V9ExportPacket", "V9Header", "V9TemplateField", "V9OptionsTemplateFlowSet"
            "V9TemplateFlowSet", "V9TemplateNotRecognized", "V9TemplateRecord"]
 
 V9_FIELD_TYPES = {
@@ -194,8 +194,6 @@ class V9DataFlowSet:
             raise V9TemplateNotRecognized
 
         template = templates[self.template_id]
-        if len(template.fields) == 0:
-            return #ignore options templates at the moment
 
         # As the field lengths are variable V9 has padding to next 32 Bit
         padding_size = 4 - (self.length % 4)  # 4 Byte
@@ -264,12 +262,17 @@ class V9TemplateRecord:
             self.template_id, self.field_count,
             ' '.join([V9_FIELD_TYPES[field.field_type] for field in self.fields]))
 
+
 class V9OptionsTemplateFlowSet:
+    """An options template flowset. Always uses flowset ID 1.
+    TODO: not handled at the moment, only stub implementation
+    """
     def __init__(self, data):
         pack = struct.unpack('!HHH', data[:6])
         self.flowset_id = pack[0]
         self.length = pack[1]
         self.template_id = pack[2]
+
 
 class V9TemplateFlowSet:
     """A template flowset, which holds an id that is used by data flowsets to
@@ -348,6 +351,7 @@ class V9ExportPacket:
         skipped_flowsets_offsets = []
         while offset != len(data):
             flowset_id = struct.unpack('!H', data[offset:offset + 2])[0]
+
             if flowset_id == 0:  # TemplateFlowSet always have id 0
                 tfs = V9TemplateFlowSet(data[offset:])
 
@@ -361,14 +365,13 @@ class V9ExportPacket:
                 # Update the templates with the provided templates, even if they are the same
                 self._templates.update(tfs.templates)
                 offset += tfs.length
-            elif flowset_id == 1:
-                otfs = V9OptionsTemplateFlowSet(data[offset:])
-                if not self._new_templates:
-                    if otfs.template_id not in self._templates:
-                        self._new_templates = True
 
-                self._templates.update({otfs.template_id: V9TemplateRecord(otfs.template_id, 0, {})})
+            elif flowset_id == 1:  # Option templates always use ID 1
+                # TODO: Options templates are ignored, to prevent template ID collision
+                # (if a collision can occur is not yet tested)
+                otfs = V9OptionsTemplateFlowSet(data[offset:])
                 offset += otfs.length
+
             else:
                 try:
                     dfs = V9DataFlowSet(data[offset:], self._templates)
