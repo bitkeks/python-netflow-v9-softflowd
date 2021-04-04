@@ -190,10 +190,16 @@ class V9DataFlowSet:
 
         offset = 4
 
-        if self.template_id not in templates:
-            raise V9TemplateNotRecognized
+        template_id = self.template_id  # use int for "normal" template IDs
+        if template_id not in templates:  # check for existing template
+            template_id = "_{}".format(template_id)  # if not found as int, try as hacky string for option templates
+            if template_id not in templates:  # check for options template
+                raise V9TemplateNotRecognized   # raise if neither is found
 
-        template = templates[self.template_id]
+        template = templates[template_id]  # here template_id is either int or string, according to finding-result
+
+        if len(template.fields) == 0 or type(template_id) == str:
+            return  # Skip options templates stubs
 
         # As the field lengths are variable V9 has padding to next 32 Bit
         padding_size = 4 - (self.length % 4)  # 4 Byte
@@ -252,7 +258,7 @@ class V9TemplateRecord:
     """A template record contained in a TemplateFlowSet.
     """
 
-    def __init__(self, template_id, field_count, fields):
+    def __init__(self, template_id, field_count, fields: list):
         self.template_id = template_id
         self.field_count = field_count
         self.fields = fields
@@ -263,8 +269,21 @@ class V9TemplateRecord:
             ' '.join([V9_FIELD_TYPES[field.field_type] for field in self.fields]))
 
 
+class V9OptionsDataRecordStub:
+    # Stub
+    pass
+
+
+class V9OptionsTemplateRecordStub:
+    # Stub
+    def __init__(self, template_id):
+        self.template_id = template_id
+        self.field_count = 0
+        self.fields = []
+
+
 class V9OptionsTemplateFlowSet:
-    """An options template flowset. Always uses flowset ID 1.
+    """An options template flowset.
     TODO: not handled at the moment, only stub implementation
     """
     def __init__(self, data):
@@ -341,7 +360,7 @@ class V9ExportPacket:
     """The flow record holds the header and all template and data flowsets.
     """
 
-    def __init__(self, data, templates):
+    def __init__(self, data: bytes, templates: dict):
         self.header = V9Header(data)
         self._templates = templates
         self._new_templates = False
@@ -367,9 +386,11 @@ class V9ExportPacket:
                 offset += tfs.length
 
             elif flowset_id == 1:  # Option templates always use ID 1
-                # TODO: Options templates are ignored, to prevent template ID collision
-                # (if a collision can occur is not yet tested)
                 otfs = V9OptionsTemplateFlowSet(data[offset:])
+                if otfs.template_id not in self._templates:
+                    self._templates.update(
+                        {"_{}".format(otfs.template_id): V9OptionsTemplateRecordStub(otfs.template_id)})
+                    self._new_templates = True
                 offset += otfs.length
 
             else:
