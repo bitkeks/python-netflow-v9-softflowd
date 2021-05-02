@@ -323,7 +323,11 @@ class V9OptionsTemplateFlowSet:
 
             # Fetch all scope fields (most probably only one field)
             scopes = {}  # Holds "type: length" key-value pairs
-            for scope_counter in range(option_scope_length / 4):  # example: option_scope_length = 4 means one scope
+
+            if option_scope_length % 4 != 0 or options_length % 4 != 0:
+                raise ValueError(option_scope_length, options_length)
+
+            for scope_counter in range(option_scope_length // 4):  # example: option_scope_length = 4 means one scope
                 pack = struct.unpack("!HH", data[offset:offset + 4])
                 scope_field_type = pack[0]  # values range from 1 to 5
                 scope_field_length = pack[1]
@@ -332,7 +336,7 @@ class V9OptionsTemplateFlowSet:
 
             # Fetch all option fields
             options = {}  # same
-            for option_counter in range(options_length / 4):  # now counting the options
+            for option_counter in range(options_length // 4):  # now counting the options
                 pack = struct.unpack("!HH", data[offset:offset + 4])
                 option_field_type = pack[0]
                 option_field_length = pack[1]
