@@ -1,9 +1,11 @@
 # Python NetFlow/IPFIX library
-This package contains libraries and tools for **NetFlow versions 1, 5 and 9, and IPFIX**.
+This package contains libraries and tools for **NetFlow versions 1, 5 and 9, and IPFIX**. It is available [on PyPI as "netflow"](https://pypi.org/project/netflow/).
 
 Version 9 is the first NetFlow version using templates. Templates make dynamically sized and configured NetFlow data flowsets possible, which makes the collector's job harder. The library provides the `netflow.parse_packet()` function as the main API point (see below). By importing `netflow.v1`, `netflow.v5` or `netflow.v9` you have direct access to the respective parsing objects, but at the beginning you probably will have more success by running the reference collector (example below) and look into its code. IPFIX (IP Flow Information Export) is based on NetFlow v9 and standardized by the IETF. All related classes are contained in `netflow.ipfix`. 
 
-Copyright 2016-2020 Dominik Pataky <software+pynetflow@dpataky.eu>
+![Data flow diagram](nf-workflow.png)
+
+Copyright 2016-2021 Dominik Pataky <software+pynetflow@dpataky.eu>
 
 Licensed under MIT License. See LICENSE.
 
@@ -34,7 +36,7 @@ assert p.header.version == 5  # NetFlow v5 packet
 assert p.flows[0].PROTO == 1  # ICMP flow
 ```
 
-In NetFlow v9 and IPFIX, templates are used instead of a fixed set of fields (like `PROTO`). See `collector.py` on how to handle these.
+In NetFlow v9 and IPFIX, templates are used instead of a fixed set of fields (like `PROTO`). See `collector.py` on how to handle these. You **must** store received templates in between exports and pass them to the parser when new packets arrive. Not storing the templates will always result in parsing failures.
 
 ## Using the collector and analyzer
 Since v0.9.0 the `netflow` library also includes reference implementations of a collector and an analyzer as CLI tools.
