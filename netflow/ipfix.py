@@ -817,7 +817,7 @@ class IPFIXSet:
                 if template_record.field_count == 0:
                     self._templates[template_record.template_id] = None
                 else:
-                    self._templates[template_record.template_id] = template_record.fields
+                    self._templates[template_record.template_id] = template_record
                 offset += template_record.get_length()
 
         elif self.header.set_id == 3:  # options template
@@ -832,15 +832,18 @@ class IPFIXSet:
                 offset += optionstemplate_record.get_length()
 
         elif self.header.set_id >= 256:  # data set, set_id is template id
-            while offset < self.header.length:
-                template = templates.get(
-                    self.header.set_id)  # type: List[Union[TemplateField, TemplateFieldEnterprise]]
-                if not template:
-                    raise IPFIXTemplateNotRecognized
-                data_record = IPFIXDataRecord(data[offset:], template)
+            template = templates.get(
+                self.header.set_id)  # type: List[Union[TemplateField, TemplateFieldEnterprise]]
+            if not template:
+                raise IPFIXTemplateNotRecognized
+
+            no_padding_last_offset = self.header.length - template.get_length() # This is the last possible offset value possible if there's no padding.
+            while no_padding_last_offset > offset:
+                data_record = IPFIXDataRecord(data[offset:], template.fields)
                 self.records.append(data_record)
                 offset += data_record.get_length()
-        self._length = offset
+
+        self._length = self.header.length
 
     def get_length(self):
         return self._length
