@@ -18,7 +18,7 @@ jobs:
       - name: Set up Python 3.5.3
         uses: gabrielfalcao/pyenv-action@v7
         with:
-          default: '3.5.3'  # Debian Buster (stable)
+          default: '3.5.3'  # Debian Stretch (oldoldstable)
       
       - name: Run Python unittests
         run: python3 -m unittest
