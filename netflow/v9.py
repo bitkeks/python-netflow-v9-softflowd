@@ -499,6 +499,8 @@ class V9ExportPacket:
                     if id_ not in self._templates:
                         self._new_templates = True
                     self._templates[id_] = template
+                if tfs.length == 0:
+                    break
                 offset += tfs.length
                 continue
 
@@ -510,6 +512,8 @@ class V9ExportPacket:
                         self._new_templates = True
                     self._templates[id_] = template
                 offset += otfs.flowset_length
+                if otfs.flowset_length == 0:
+                    break
                 continue
 
             # Data / option flowsets
@@ -518,6 +522,8 @@ class V9ExportPacket:
                 # Could not be parsed, continue to check for templates
                 skipped_flowsets_offsets.append(offset)
                 offset += flowset_length
+                if flowset_length == 0:
+                    break
                 continue
 
             matched_template = self._templates[flowset_id]
@@ -525,11 +531,17 @@ class V9ExportPacket:
             if isinstance(matched_template, V9TemplateRecord):
                 dfs = V9DataFlowSet(data[offset:], matched_template)
                 self._flows += dfs.flows
+                if dfs.length == 0:
+                    break
                 offset += dfs.length
 
             elif isinstance(matched_template, V9OptionsTemplateRecord):
                 odfs = V9OptionsDataFlowset(data[offset:], matched_template)
                 self._options += odfs.option_data_records
+                if odfs.length == 0:
+                    break
+                if odfs.length == 0:
+                    break
                 offset += odfs.length
 
             else:

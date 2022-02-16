@@ -13,7 +13,7 @@ import random
 import unittest
 
 from tests.lib import send_recv_packets, NUM_PACKETS, \
-    PACKET_INVALID, PACKET_V1, PACKET_V5, \
+    PACKET_INVALID, PACKET_V1, PACKET_V5, PACKET_V9_WITH_PL, \
     PACKET_V9_TEMPLATE, PACKET_V9_TEMPLATE_MIXED, PACKETS_V9
 
 
@@ -117,6 +117,10 @@ class TestFlowExportNetflow(unittest.TestCase):
 
         # send packet without any template, must fail to parse (packets are queued)
         pkts, _, _ = send_recv_packets([PACKETS_V9[0]])
+        self.assertEqual(len(pkts), 0)  # no export is parsed due to missing template
+
+        # send an invalid packet with zero bytes, must fail to parse
+        pkts, _, _ = send_recv_packets([PACKET_V9_WITH_PL])
         self.assertEqual(len(pkts), 0)  # no export is parsed due to missing template
 
         # send packet with two templates and eight flows, should parse correctly since the templates are known
