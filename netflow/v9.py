@@ -540,8 +540,6 @@ class V9ExportPacket:
                 self._options += odfs.option_data_records
                 if odfs.length == 0:
                     break
-                if odfs.length == 0:
-                    break
                 offset += odfs.length
 
             else:
