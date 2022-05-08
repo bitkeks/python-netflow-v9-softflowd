@@ -208,39 +208,49 @@ class V9DataFlowSet:
         # As the field lengths are variable V9 has padding to next 32 Bit
         padding_size = 4 - (self.length % 4)  # 4 Byte
 
-        while offset <= (self.length - padding_size):
-            new_record = V9DataRecord()
+        # For performance reasons, we use struct.unpack to get individual values. Here
+        # we prepare the format string for parsing it:
+        struct_format = '!'
+        struct_len = 0
+        for field in template.fields:
+            # The length of the value byte slice is defined in the template
+            flen = field.field_length
+            if flen == 4:
+                struct_format += 'L'
+            elif flen == 2:
+                struct_format += 'H'
+            elif flen == 1:
+                struct_format += 'B'
+            else:
+                struct_format += f'{flen}s'
+            struct_len += flen
 
-            for field in template.fields:
-                # The length of the value byte slice is defined in the template
+        while offset <= (self.length - padding_size):
+            unpacked_values = struct.unpack(struct_format, data[offset:offset + struct_len])
+
+            new_record = V9DataRecord()
+            for field, value in zip(template.fields, unpacked_values):
                 flen = field.field_length
                 fkey = V9_FIELD_TYPES[field.field_type]
 
                 # Special handling of IP addresses to convert integers to strings to not lose precision in dump
                 # TODO: might only be needed for IPv6
                 if field.field_type in FIELD_TYPES_CONTAINING_IP:
-                    dataslice = data[offset:offset+flen]
                     try:
-                        ip = ipaddress.ip_address(dataslice)
+                        ip = ipaddress.ip_address(value)
                     except ValueError:
-                        print("IP address could not be parsed: {}".format(fdata))
+                        print("IP address could not be parsed: {}".format(repr(value)))
                         continue
                     new_record.data[fkey] = ip.compressed
+                elif flen in (1, 2, 4):
+                    # These values are already converted to numbers by struct.unpack:
+                    new_record.data[fkey] = value
                 else:
-                    # For performance reasons, we use struct.unpack for known lengths:
-                    if flen == 4:
-                        new_record.data[fkey], = struct.unpack_from('!L', data, offset)
-                    elif flen == 2:
-                        new_record.data[fkey], = struct.unpack_from('!H', data, offset)
-                    elif flen == 1:
-                        new_record.data[fkey], = struct.unpack_from('!B', data, offset)
-                    else:
-                        dataslice = data[offset:offset+flen]
-                        # Caveat: this code assumes little-endian system (like x86)
-                        fdata = 0
-                        for idx, byte in enumerate(reversed(bytearray(dataslice))):
-                            fdata += byte << (idx * 8)
-                        new_record.data[fkey] = fdata
+                    # Caveat: this code assumes little-endian system (like x86)
+                    fdata = 0
+                    for idx, byte in enumerate(reversed(bytearray(value))):
+                        fdata += byte << (idx * 8)
+                    new_record.data[fkey] = fdata
 
                 offset += flen
 
