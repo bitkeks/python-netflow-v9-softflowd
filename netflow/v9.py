@@ -228,11 +228,19 @@ class V9DataFlowSet:
                         continue
                     new_record.data[fkey] = ip.compressed
                 else:
-                    # Better solution than struct.unpack with variable field length
-                    fdata = 0
-                    for idx, byte in enumerate(reversed(bytearray(dataslice))):
-                        fdata += byte << (idx * 8)
-                    new_record.data[fkey] = fdata
+                    # For performance reasons, we use struct.unpack for known lengths:
+                    if flen == 4:
+                        new_record.data[fkey], = struct.unpack('!L', dataslice)
+                    elif flen == 2:
+                        new_record.data[fkey], = struct.unpack('!H', dataslice)
+                    elif flen == 1:
+                        new_record.data[fkey], = struct.unpack('!B', dataslice)
+                    else:
+                        # Caveat: this code assumes little-endian system (like x86)
+                        fdata = 0
+                        for idx, byte in enumerate(reversed(bytearray(dataslice))):
+                            fdata += byte << (idx * 8)
+                        new_record.data[fkey] = fdata
 
                 offset += flen
 
