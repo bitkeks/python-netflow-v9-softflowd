@@ -222,7 +222,7 @@ class V9DataFlowSet:
             elif flen == 1:
                 struct_format += 'B'
             else:
-                struct_format += f'{flen}s'
+                struct_format += '%ds' % flen
             struct_len += flen
 
         while offset <= (self.length - padding_size):
