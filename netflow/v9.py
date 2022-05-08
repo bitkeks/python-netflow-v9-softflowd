@@ -218,21 +218,20 @@ class V9DataFlowSet:
                 # The length of the value byte slice is defined in the template
                 dataslice = data[offset:offset + flen]
 
-                # Better solution than struct.unpack with variable field length
-                fdata = 0
-                for idx, byte in enumerate(reversed(bytearray(dataslice))):
-                    fdata += byte << (idx * 8)
-
                 # Special handling of IP addresses to convert integers to strings to not lose precision in dump
                 # TODO: might only be needed for IPv6
                 if field.field_type in FIELD_TYPES_CONTAINING_IP:
                     try:
-                        ip = ipaddress.ip_address(fdata)
+                        ip = ipaddress.ip_address(dataslice)
                     except ValueError:
                         print("IP address could not be parsed: {}".format(fdata))
                         continue
                     new_record.data[fkey] = ip.compressed
                 else:
+                    # Better solution than struct.unpack with variable field length
+                    fdata = 0
+                    for idx, byte in enumerate(reversed(bytearray(dataslice))):
+                        fdata += byte << (idx * 8)
                     new_record.data[fkey] = fdata
 
                 offset += flen
