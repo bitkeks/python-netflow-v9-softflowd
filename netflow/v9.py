@@ -14,6 +14,7 @@ Licensed under MIT License. See LICENSE.
 
 import ipaddress
 import struct
+import sys
 
 from .ipfix import IPFIXFieldTypes, IPFIXDataTypes
 
@@ -21,9 +22,7 @@ __all__ = ["V9DataFlowSet", "V9DataRecord", "V9ExportPacket", "V9Header", "V9Tem
            "V9TemplateFlowSet", "V9TemplateNotRecognized", "V9TemplateRecord",
            "V9OptionsTemplateFlowSet", "V9OptionsTemplateRecord", "V9OptionsDataRecord"]
 
-
-FIELD_TYPES_CONTAINING_IP = [8, 12, 27, 28]
-
+V9_FIELD_TYPES_CONTAINING_IP = [8, 12, 15, 18, 27, 28, 62, 63]
 
 V9_FIELD_TYPES = {
     0: 'UNKNOWN_FIELD_TYPE',  # fallback for unknown field types
@@ -209,7 +208,8 @@ class V9DataFlowSet:
         padding_size = 4 - (self.length % 4)  # 4 Byte
 
         # For performance reasons, we use struct.unpack to get individual values. Here
-        # we prepare the format string for parsing it:
+        # we prepare the format string for parsing it. The format string is based on the template fields and their
+        # lengths. The string can then be re-used for every data record in the data stream
         struct_format = '!'
         struct_len = 0
         for field in template.fields:
@@ -226,6 +226,8 @@ class V9DataFlowSet:
             struct_len += flen
 
         while offset <= (self.length - padding_size):
+            # Here we actually unpack the values, the struct format string is used in every data record
+            # iteration, until the final offset reaches the end of the whole data stream
             unpacked_values = struct.unpack(struct_format, data[offset:offset + struct_len])
 
             new_record = V9DataRecord()
@@ -235,7 +237,7 @@ class V9DataFlowSet:
 
                 # Special handling of IP addresses to convert integers to strings to not lose precision in dump
                 # TODO: might only be needed for IPv6
-                if field.field_type in FIELD_TYPES_CONTAINING_IP:
+                if field.field_type in V9_FIELD_TYPES_CONTAINING_IP:
                     try:
                         ip = ipaddress.ip_address(value)
                     except ValueError:
@@ -247,6 +249,9 @@ class V9DataFlowSet:
                     new_record.data[fkey] = value
                 else:
                     # Caveat: this code assumes little-endian system (like x86)
+                    if sys.byteorder != "little":
+                        print("v9.py uses bit shifting for little endianness. Your processor is not little endian")
+
                     fdata = 0
                     for idx, byte in enumerate(reversed(bytearray(value))):
                         fdata += byte << (idx * 8)
@@ -394,7 +399,7 @@ class V9OptionsDataFlowset:
 
             for scope_type, length in template.scope_fields.items():
                 type_name = V9_SCOPE_TYPES.get(scope_type, scope_type)  # Either name, or unknown int
-                value = int.from_bytes(data[offset:offset+length], 'big')  # TODO: is this always integer?
+                value = int.from_bytes(data[offset:offset + length], 'big')  # TODO: is this always integer?
                 new_options_record.scopes[type_name] = value
                 offset += length
 
@@ -413,9 +418,9 @@ class V9OptionsDataFlowset:
 
                 value = None
                 if is_bytes:
-                    value = data[offset:offset+length]
+                    value = data[offset:offset + length]
                 else:
-                    value = int.from_bytes(data[offset:offset+length], 'big')
+                    value = int.from_bytes(data[offset:offset + length], 'big')
 
                 new_options_record.data[type_name] = value
 
