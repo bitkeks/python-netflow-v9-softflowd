@@ -663,9 +663,6 @@ class IPFIXTemplateRecord:
         offset += offset_add
         if len(self.fields) != self.field_count:
             raise IPFIXMalformedRecord
-
-        # TODO: if padding is needed, implement here
-
         self._length = offset
 
     def get_length(self):
@@ -696,8 +693,6 @@ class IPFIXOptionsTemplateRecord:
         if len(self.fields) + len(self.scope_fields) != self.field_count:
             raise IPFIXMalformedRecord
         offset += offset_add
-
-        # TODO: if padding is needed, implement here
 
         self._length = offset
 
@@ -809,7 +804,8 @@ class IPFIXSet:
         self.records = []
         self._templates = {}
 
-        offset = IPFIXSetHeader.size
+        offset = IPFIXSetHeader.size  # fixed size
+
         if self.header.set_id == 2:  # template set
             while offset < self.header.length:  # length of whole set
                 template_record = IPFIXTemplateRecord(data[offset:])
@@ -819,6 +815,10 @@ class IPFIXSet:
                 else:
                     self._templates[template_record.template_id] = template_record.fields
                 offset += template_record.get_length()
+
+                # Break if the rest of the data bytes are zeroes
+                if rest_is_padding_zeroes(data[:offset + self.header.length], offset):
+                    break
 
         elif self.header.set_id == 3:  # options template
             while offset < self.header.length:
@@ -831,6 +831,9 @@ class IPFIXSet:
                         optionstemplate_record.scope_fields + optionstemplate_record.fields
                 offset += optionstemplate_record.get_length()
 
+                if rest_is_padding_zeroes(data[:offset + self.header.length], offset):
+                    break
+
         elif self.header.set_id >= 256:  # data set, set_id is template id
             while offset < self.header.length:
                 template = templates.get(
@@ -840,6 +843,13 @@ class IPFIXSet:
                 data_record = IPFIXDataRecord(data[offset:], template)
                 self.records.append(data_record)
                 offset += data_record.get_length()
+
+                if rest_is_padding_zeroes(data[:offset + self.header.length], offset):
+                    break
+
+        # Condition "rest is zeros (padding)" is already checked inside each set_id branch
+        if offset != self.header.length:
+            offset += self.header.length - offset
         self._length = offset
 
     def get_length(self):
@@ -967,3 +977,12 @@ def parse_fields(data: bytes, count: int) -> (list, int):
             )
             offset += 4
     return fields, offset
+
+
+def rest_is_padding_zeroes(data: bytes, offset: int) -> bool:
+    if offset != len(data):
+        # padding zeros, so rest of bytes must be summed to 0
+        if sum(data[offset:]) != 0:
+            return False
+        return True
+    return False
