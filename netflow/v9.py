@@ -14,12 +14,15 @@ Licensed under MIT License. See LICENSE.
 
 import ipaddress
 import struct
+import sys
 
 from .ipfix import IPFIXFieldTypes, IPFIXDataTypes
 
 __all__ = ["V9DataFlowSet", "V9DataRecord", "V9ExportPacket", "V9Header", "V9TemplateField",
            "V9TemplateFlowSet", "V9TemplateNotRecognized", "V9TemplateRecord",
            "V9OptionsTemplateFlowSet", "V9OptionsTemplateRecord", "V9OptionsDataRecord"]
+
+V9_FIELD_TYPES_CONTAINING_IP = [8, 12, 15, 18, 27, 28, 62, 63]
 
 V9_FIELD_TYPES = {
     0: 'UNKNOWN_FIELD_TYPE',  # fallback for unknown field types
@@ -204,31 +207,54 @@ class V9DataFlowSet:
         # As the field lengths are variable V9 has padding to next 32 Bit
         padding_size = 4 - (self.length % 4)  # 4 Byte
 
-        while offset <= (self.length - padding_size):
-            new_record = V9DataRecord()
+        # For performance reasons, we use struct.unpack to get individual values. Here
+        # we prepare the format string for parsing it. The format string is based on the template fields and their
+        # lengths. The string can then be re-used for every data record in the data stream
+        struct_format = '!'
+        struct_len = 0
+        for field in template.fields:
+            # The length of the value byte slice is defined in the template
+            flen = field.field_length
+            if flen == 4:
+                struct_format += 'L'
+            elif flen == 2:
+                struct_format += 'H'
+            elif flen == 1:
+                struct_format += 'B'
+            else:
+                struct_format += '%ds' % flen
+            struct_len += flen
 
-            for field in template.fields:
+        while offset <= (self.length - padding_size):
+            # Here we actually unpack the values, the struct format string is used in every data record
+            # iteration, until the final offset reaches the end of the whole data stream
+            unpacked_values = struct.unpack(struct_format, data[offset:offset + struct_len])
+
+            new_record = V9DataRecord()
+            for field, value in zip(template.fields, unpacked_values):
                 flen = field.field_length
                 fkey = V9_FIELD_TYPES[field.field_type]
 
-                # The length of the value byte slice is defined in the template
-                dataslice = data[offset:offset + flen]
-
-                # Better solution than struct.unpack with variable field length
-                fdata = 0
-                for idx, byte in enumerate(reversed(bytearray(dataslice))):
-                    fdata += byte << (idx * 8)
-
                 # Special handling of IP addresses to convert integers to strings to not lose precision in dump
                 # TODO: might only be needed for IPv6
-                if fkey in ["IPV4_SRC_ADDR", "IPV4_DST_ADDR", "IPV6_SRC_ADDR", "IPV6_DST_ADDR"]:
+                if field.field_type in V9_FIELD_TYPES_CONTAINING_IP:
                     try:
-                        ip = ipaddress.ip_address(fdata)
+                        ip = ipaddress.ip_address(value)
                     except ValueError:
-                        print("IP address could not be parsed: {}".format(fdata))
+                        print("IP address could not be parsed: {}".format(repr(value)))
                         continue
                     new_record.data[fkey] = ip.compressed
+                elif flen in (1, 2, 4):
+                    # These values are already converted to numbers by struct.unpack:
+                    new_record.data[fkey] = value
                 else:
+                    # Caveat: this code assumes little-endian system (like x86)
+                    if sys.byteorder != "little":
+                        print("v9.py uses bit shifting for little endianness. Your processor is not little endian")
+
+                    fdata = 0
+                    for idx, byte in enumerate(reversed(bytearray(value))):
+                        fdata += byte << (idx * 8)
                     new_record.data[fkey] = fdata
 
                 offset += flen
@@ -373,7 +399,7 @@ class V9OptionsDataFlowset:
 
             for scope_type, length in template.scope_fields.items():
                 type_name = V9_SCOPE_TYPES.get(scope_type, scope_type)  # Either name, or unknown int
-                value = int.from_bytes(data[offset:offset+length], 'big')  # TODO: is this always integer?
+                value = int.from_bytes(data[offset:offset + length], 'big')  # TODO: is this always integer?
                 new_options_record.scopes[type_name] = value
                 offset += length
 
@@ -392,9 +418,9 @@ class V9OptionsDataFlowset:
 
                 value = None
                 if is_bytes:
-                    value = data[offset:offset+length]
+                    value = data[offset:offset + length]
                 else:
-                    value = int.from_bytes(data[offset:offset+length], 'big')
+                    value = int.from_bytes(data[offset:offset + length], 'big')
 
                 new_options_record.data[type_name] = value
 
