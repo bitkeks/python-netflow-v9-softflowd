@@ -739,7 +739,7 @@ class IPFIXDataRecord:
                 raise NotImplementedError("Field type with ID {} is not implemented".format(field_type_id))
 
             datatype = field_type.type  # type: str
-            discovered_fields.append((field_type.name, field_type_id))
+            discovered_fields.append((datatype, field_type_id))
 
             # Catch fields which are meant to be raw bytes and skip the rest
             if IPFIXDataTypes.is_bytes(datatype):
@@ -766,15 +766,15 @@ class IPFIXDataRecord:
         pack = struct.unpack(unpacker, data[0:offset])
 
         # Iterate through template again, but taking the unpacked values this time
-        for index, ((field_type_name, field_type_id), value) in enumerate(zip(discovered_fields, pack)):
+        for index, ((field_datatype, field_type_id), value) in enumerate(zip(discovered_fields, pack)):
             if type(value) is bytes:
                 # Check if value is raw bytes, so no conversion happened in struct.unpack
-                if field_type_name in ["string"]:
+                if field_datatype in ["string"]:
                     value = str(value)
                 # TODO: handle octetArray (= does not have to be unicode encoded)
-                elif field_type_name in ["boolean"]:
+                elif field_datatype in ["boolean"]:
                     value = True if value == 1 else False  # 2 = false per RFC
-                elif field_type_name in ["dateTimeMicroseconds", "dateTimeNanoseconds"]:
+                elif field_datatype in ["dateTimeMicroseconds", "dateTimeNanoseconds"]:
                     seconds = value[:4]
                     fraction = value[4:]
                     value = (int.from_bytes(seconds, "big"), int.from_bytes(fraction, "big"))
