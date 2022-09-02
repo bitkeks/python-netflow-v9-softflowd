@@ -716,10 +716,12 @@ class IPFIXDataRecord:
     In contrast to the NetFlow v9 implementation, this one does not use an extra class for the fields.
     """
 
+    _VARIABLE_LENGTH_STRING = 0
+
     def __init__(self, data, template: List[Union[TemplateField, TemplateFieldEnterprise]]):
         self.fields = set()
         offset = 0
-        unpacker = "!"
+        unpacker = ["!"]
         discovered_fields = []
 
         # Iterate through all fields of this template and build the unpack format string
@@ -743,7 +745,12 @@ class IPFIXDataRecord:
 
             # Catch fields which are meant to be raw bytes and skip the rest
             if IPFIXDataTypes.is_bytes(datatype):
-                unpacker += "{}s".format(field_length)
+                if field_length != 65535:
+                    unpacker[-1] += "{}s".format(field_length)
+                    continue
+                if unpacker[-1] == "!":
+                    unpacker.pop(-1)
+                unpacker.extend((self._VARIABLE_LENGTH_STRING, "!"))
                 continue
 
             # Go into int, uint, float types
@@ -752,18 +759,32 @@ class IPFIXDataRecord:
             assert not (all([issigned, isfloat]))  # signed int and float are exclusive
 
             if field_length == 1:
-                unpacker += "b" if issigned else "B"
+                unpacker[-1] += "b" if issigned else "B"
             elif field_length == 2:
-                unpacker += "h" if issigned else "H"
+                unpacker[-1] += "h" if issigned else "H"
             elif field_length == 4:
-                unpacker += "i" if issigned else "f" if isfloat else "I"
+                unpacker[-1] += "i" if issigned else "f" if isfloat else "I"
             elif field_length == 8:
-                unpacker += "q" if issigned else "d" if isfloat else "Q"
+                unpacker[-1] += "q" if issigned else "d" if isfloat else "Q"
             else:
                 raise IPFIXTemplateError("Template field_length {} not handled in unpacker".format(field_length))
 
         # Finally, unpack the data byte stream according to format defined in iteration above
-        pack = struct.unpack(unpacker, data[0:offset])
+        pack = ()
+        offset = 0
+        for unpacker_segment in unpacker:
+            if unpacker_segment != self._VARIABLE_LENGTH_STRING:
+                segment_length = struct.calcsize(unpacker_segment)
+                pack += struct.unpack(unpacker_segment, data[offset:offset + segment_length])
+                offset += segment_length
+            else:
+                length = struct.unpack("!B", data[offset:offset+1])[0]
+                offset += 1
+                if length == 255:
+                    length = struct.unpack("!H", data[offset:offset+2])[0]
+                    offset += 2
+                pack += struct.unpack("!{}s".format(length), data[offset:offset+length])
+                offset += length
 
         # Iterate through template again, but taking the unpacked values this time
         for index, ((field_datatype, field_type_id), value) in enumerate(zip(discovered_fields, pack)):
