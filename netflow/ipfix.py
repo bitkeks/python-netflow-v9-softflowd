@@ -954,7 +954,7 @@ def parse_fields(data: bytes, count: int) -> (list, int):
             pack = struct.unpack("!HHI", data[offset:offset + 8])
             fields.append(
                 TemplateFieldEnterprise(
-                    id=pack[0] & ~(1 << 7),  # ID, clear enterprise flag bit
+                    id=pack[0] & ~(1 << 15),  # ID, clear enterprise flag bit
                     length=pack[1],  # field length
                     enterprise_number=pack[2]  # enterprise number
                 )
