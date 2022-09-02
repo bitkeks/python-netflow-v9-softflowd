@@ -770,7 +770,7 @@ class IPFIXDataRecord:
             if type(value) is bytes:
                 # Check if value is raw bytes, so no conversion happened in struct.unpack
                 if field_datatype in ["string"]:
-                    value = str(value)
+                    value = value.decode()
                 # TODO: handle octetArray (= does not have to be unicode encoded)
                 elif field_datatype in ["boolean"]:
                     value = True if value == 1 else False  # 2 = false per RFC
