@@ -1,4 +1,4 @@
-name: Run tests
+name: Run Python unit tests
 
 on:
   push:
@@ -10,15 +10,15 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
-      
+
       - name: Set up Python 3.5.3
         uses: gabrielfalcao/pyenv-action@v7
         with:
           default: '3.5.3'  # Debian Stretch (oldoldstable)
-      
+
       - name: Run Python unittests
         run: python3 -m unittest
