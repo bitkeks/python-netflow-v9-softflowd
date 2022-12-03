@@ -953,11 +953,11 @@ def parse_fields(data: bytes, count: int) -> (list, int):
     offset = 0
     fields = []  # type: List[Union[TemplateField, TemplateFieldEnterprise]]
     for ctr in range(count):
-        if data[offset] & 1 << 7 != 0:  # enterprise flag set
+        if (data[offset] & (1 << 7)) != 0:  # enterprise flag set. Bitwise AND checks bit only in the first byte/octet
             pack = struct.unpack("!HHI", data[offset:offset + 8])
             fields.append(
                 TemplateFieldEnterprise(
-                    id=pack[0] & ~(1 << 15),  # ID, clear enterprise flag bit
+                    id=(pack[0] & ~(1 << 15)),  # clear enterprise flag bit. Bitwise AND and INVERT work on two bytes
                     length=pack[1],  # field length
                     enterprise_number=pack[2]  # enterprise number
                 )
@@ -966,7 +966,10 @@ def parse_fields(data: bytes, count: int) -> (list, int):
         else:
             pack = struct.unpack("!HH", data[offset:offset + 4])
             fields.append(
-                TemplateField(id=pack[0], length=pack[1])
+                TemplateField(
+                    id=pack[0],
+                    length=pack[1]
+                )
             )
             offset += 4
     return fields, offset
