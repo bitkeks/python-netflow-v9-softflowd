@@ -15,8 +15,8 @@ jobs:
         python:
           - "3.5.3"  # Debian Stretch
           - "3.7.3"  # Debian Buster
-          - "3.9.3"  # Debian Bullseye
-          - "3.11.1" # Debian Bookworm
+          - "3.9.2"  # Debian Bullseye
+          - "3.11"   # Debian Bookworm uses 3.11.1, but it's in a newer pyenv release
     steps:
       - uses: actions/checkout@v3
 
