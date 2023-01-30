@@ -4,21 +4,26 @@ on:
   push:
     branches: [ master ]
   pull_request:
-    branches: [ master ]
 
   workflow_dispatch:
 
 jobs:
-  test:
+  test-netflow:
     runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        python:
+          - "3.5.3"  # Debian Stretch
+          - "3.7.3"  # Debian Buster
+          - "3.9.3"  # Debian Bullseye
+          - "3.11.1" # Debian Bookworm
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - name: Set up Python 3.5.3
-        uses: gabrielfalcao/pyenv-action@v7
+      - name: Set up Python with pyenv
+        uses: gabrielfalcao/pyenv-action@v11
         with:
-          default: '3.5.3'  # Debian Stretch (oldoldstable)
+          default: "${{ matrix.python }}"
 
       - name: Run Python unittests
         run: python3 -m unittest
