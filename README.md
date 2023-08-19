@@ -5,7 +5,7 @@ Version 9 is the first NetFlow version using templates. Templates make dynamical
 
 ![Data flow diagram](nf-workflow.png)
 
-Copyright 2016-2021 Dominik Pataky <software+pynetflow@dpataky.eu>
+Copyright 2016-2023 Dominik Pataky <software+pynetflow@dpataky.eu>
 
 Licensed under MIT License. See LICENSE.
 

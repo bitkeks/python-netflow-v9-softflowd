@@ -967,15 +967,15 @@ class IPFIXExportPacket:
             raise IPFIXMalformedPacket
 
     @property
-    def contains_new_templates(self):
+    def contains_new_templates(self) -> bool:
         return self._contains_new_templates
 
     @property
-    def flows(self):
+    def flows(self) -> list[IPFIXTemplateRecord | IPFIXOptionsTemplateRecord | IPFIXDataRecord]:
         return self._flows
 
     @property
-    def templates(self):
+    def templates(self) ->  dict[int, list]:
         return self._templates
 
     def __repr__(self):
