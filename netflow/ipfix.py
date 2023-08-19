@@ -866,7 +866,10 @@ class IPFIXSet:
                 offset += data_record.get_length()
 
             # Safety check
-            if not rest_is_padding_zeroes(data[:self.header.length], offset):
+            if (
+                offset != self.header.length
+                and not rest_is_padding_zeroes(data[:self.header.length], offset)
+            ):
                 raise PaddingCalculationError
 
         self._length = self.header.length
