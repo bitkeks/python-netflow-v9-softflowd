@@ -19,9 +19,9 @@ import threading
 import time
 from collections import namedtuple
 
-from .ipfix import IPFIXTemplateNotRecognized
-from .utils import UnknownExportVersion, parse_packet
-from .v9 import V9TemplateNotRecognized
+from netflow.ipfix import IPFIXTemplateNotRecognized
+from netflow.utils import UnknownExportVersion, parse_packet
+from netflow.v9 import V9TemplateNotRecognized
 
 RawPacket = namedtuple('RawPacket', ['ts', 'client', 'data'])
 ParsedPacket = namedtuple('ParsedPacket', ['ts', 'client', 'export'])

@@ -635,6 +635,10 @@ class IPFIXTemplateNotRecognized(KeyError):
     pass
 
 
+class PaddingCalculationError(Exception):
+    pass
+
+
 class IPFIXHeader:
     """The header of the IPFIX export packet
     """
@@ -663,9 +667,6 @@ class IPFIXTemplateRecord:
         offset += offset_add
         if len(self.fields) != self.field_count:
             raise IPFIXMalformedRecord
-
-        # TODO: if padding is needed, implement here
-
         self._length = offset
 
     def get_length(self):
@@ -696,8 +697,6 @@ class IPFIXOptionsTemplateRecord:
         if len(self.fields) + len(self.scope_fields) != self.field_count:
             raise IPFIXMalformedRecord
         offset += offset_add
-
-        # TODO: if padding is needed, implement here
 
         self._length = offset
 
@@ -812,16 +811,28 @@ class IPFIXSet:
         self.records = []
         self._templates = {}
 
-        offset = IPFIXSetHeader.size
+        offset = IPFIXSetHeader.size  # fixed size
+
         if self.header.set_id == 2:  # template set
             while offset < self.header.length:  # length of whole set
                 template_record = IPFIXTemplateRecord(data[offset:])
                 self.records.append(template_record)
                 if template_record.field_count == 0:
+                    # Should not happen, since RFC says "one or more"
                     self._templates[template_record.template_id] = None
                 else:
                     self._templates[template_record.template_id] = template_record.fields
                 offset += template_record.get_length()
+
+                # If the rest of the data is deemed to be too small for another
+                # template record, check existence of padding
+                if (
+                        offset != self.header.length
+                        and self.header.length - offset <= 16  # 16 is chosen as a guess
+                        and rest_is_padding_zeroes(data[:self.header.length], offset)
+                ):
+                    # Rest should be padding zeroes
+                    break
 
         elif self.header.set_id == 3:  # options template
             while offset < self.header.length:
@@ -834,16 +845,47 @@ class IPFIXSet:
                         optionstemplate_record.scope_fields + optionstemplate_record.fields
                 offset += optionstemplate_record.get_length()
 
+                # If the rest of the data is deemed to be too small for another
+                # options template record, check existence of padding
+                if (
+                        offset != self.header.length
+                        and self.header.length - offset <= 16  # 16 is chosen as a guess
+                        and rest_is_padding_zeroes(data[:self.header.length], offset)
+                ):
+                    # Rest should be padding zeroes
+                    break
+
         elif self.header.set_id >= 256:  # data set, set_id is template id
-            while offset < self.header.length:
-                template = templates.get(
-                    self.header.set_id)  # type: List[Union[TemplateField, TemplateFieldEnterprise]]
-                if not template:
-                    raise IPFIXTemplateNotRecognized
-                data_record = IPFIXDataRecord(data[offset:], template)
+            # First, get the template behind the ID. Returns a list of fields or raises an exception
+            template_fields = templates.get(
+                self.header.set_id)  # type: List[Union[TemplateField, TemplateFieldEnterprise]]
+            if not template_fields:
+                raise IPFIXTemplateNotRecognized
+
+            # All template fields have a known length. Add them all together to get the length of the data set.
+            dataset_length = functools.reduce(lambda a, x: a + x.length, template_fields, 0)
+
+            # This is the last possible offset value possible if there's no padding.
+            # If there is padding, this value marks the beginning of the padding.
+            # Two cases possible:
+            # 1. No padding: then (4 + x * dataset_length) == self.header.length
+            # 2. Padding: then (4 + x * dataset_length + p) == self.header.length,
+            #    where p is the remaining length of padding zeroes. The modulo calculates p
+            no_padding_last_offset = self.header.length - ((self.header.length - IPFIXSetHeader.size) % dataset_length)
+
+            while offset < no_padding_last_offset:
+                data_record = IPFIXDataRecord(data[offset:], template_fields)
                 self.records.append(data_record)
                 offset += data_record.get_length()
-        self._length = offset
+
+            # Safety check
+            if (
+                    offset != self.header.length
+                    and not rest_is_padding_zeroes(data[:self.header.length], offset)
+            ):
+                raise PaddingCalculationError
+
+        self._length = self.header.length
 
     def get_length(self):
         return self._length
@@ -973,3 +1015,14 @@ def parse_fields(data: bytes, count: int) -> (list, int):
             )
             offset += 4
     return fields, offset
+
+
+def rest_is_padding_zeroes(data: bytes, offset: int) -> bool:
+    if offset <= len(data):
+        # padding zeros, so rest of bytes must be summed to 0
+        if sum(data[offset:]) != 0:
+            return False
+        return True
+
+    # If offset > len(data) there is an error
+    raise ValueError
