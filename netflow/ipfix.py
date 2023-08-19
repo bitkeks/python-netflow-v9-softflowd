@@ -821,8 +821,13 @@ class IPFIXSet:
                     self._templates[template_record.template_id] = template_record.fields
                 offset += template_record.get_length()
 
-                if self.header.length - offset <= 8 and \
-                        rest_is_padding_zeroes(data[:self.header.length], offset):
+                # If the rest of the data is deemed to be too small for another
+                # template record, check existence of padding
+                if (
+                        offset != self.header.length
+                        and self.header.length - offset <= 16  # 16 is chosen as a guess
+                        and rest_is_padding_zeroes(data[:self.header.length], offset)
+                ):
                     # Rest should be padding zeroes
                     break
 
@@ -837,8 +842,13 @@ class IPFIXSet:
                         optionstemplate_record.scope_fields + optionstemplate_record.fields
                 offset += optionstemplate_record.get_length()
 
-                if self.header.length - offset <= 8 and \
-                        rest_is_padding_zeroes(data[:self.header.length], offset):
+                # If the rest of the data is deemed to be too small for another
+                # options template record, check existence of padding
+                if (
+                        offset != self.header.length
+                        and self.header.length - offset <= 16  # 16 is chosen as a guess
+                        and rest_is_padding_zeroes(data[:self.header.length], offset)
+                ):
                     # Rest should be padding zeroes
                     break
 
@@ -867,8 +877,8 @@ class IPFIXSet:
 
             # Safety check
             if (
-                offset != self.header.length
-                and not rest_is_padding_zeroes(data[:self.header.length], offset)
+                    offset != self.header.length
+                    and not rest_is_padding_zeroes(data[:self.header.length], offset)
             ):
                 raise PaddingCalculationError
 
