@@ -1025,4 +1025,4 @@ def rest_is_padding_zeroes(data: bytes, offset: int) -> bool:
         return True
 
     # If offset > len(data) there is an error
-    raise ValueError
+    raise ValueError("netflow.ipfix.rest_is_padding_zeroes received a greater offset value than there is data")

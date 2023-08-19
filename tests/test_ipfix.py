@@ -13,7 +13,7 @@ import ipaddress
 import unittest
 
 from tests.lib import send_recv_packets, PACKET_IPFIX_TEMPLATE, PACKET_IPFIX, PACKET_IPFIX_ETHER, \
-    PACKET_IPFIX_TEMPLATE_ETHER
+    PACKET_IPFIX_TEMPLATE_ETHER, PACKET_IPFIX_PADDING
 
 
 class TestFlowExportIPFIX(unittest.TestCase):
@@ -98,3 +98,19 @@ class TestFlowExportIPFIX(unittest.TestCase):
         self.assertTrue(hasattr(flow, "postDestinationMacAddress"))
         self.assertEqual(flow.sourceMacAddress, 0x123456affefe)
         self.assertEqual(flow.postDestinationMacAddress, 0xaffeaffeaffe)
+
+    def test_ipfix_padding(self):
+        """
+        Checks successful parsing of export packets that contain padding zeroes in an IPFIX set.
+        The padding in the example data is in between the last two data sets, so the successful parsing of the last
+        data set indicates correct handling of padding zero bytes.
+        """
+        pkts, _, _ = send_recv_packets([PACKET_IPFIX_PADDING])
+        self.assertEqual(len(pkts), 1)
+        p = pkts[0]
+
+        # Check for length of whole export
+        self.assertEqual(p.export.header.length, 448)
+
+        # Check a specific value of the last flow in the export. Success means correct handling of padding in the set
+        self.assertEqual(p.export.flows[-1].meteringProcessId, 45786)
