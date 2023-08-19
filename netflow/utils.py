@@ -31,8 +31,8 @@ def get_export_version(data):
     return struct.unpack('!H', data[:2])[0]
 
 
-def parse_packet(data: Union[str, bytes], templates: Dict = None) -> Union[V1ExportPacket, V5ExportPacket,
-                                                                           V9ExportPacket, IPFIXExportPacket]:
+def parse_packet(data: Union[str, bytes], templates: Dict = None) \
+        -> Union[V1ExportPacket, V5ExportPacket, V9ExportPacket, IPFIXExportPacket]:
     """
     Parse an exported packet, either from string (hex) or from bytes.
 
@@ -66,10 +66,10 @@ def parse_packet(data: Union[str, bytes], templates: Dict = None) -> Union[V1Exp
     :param templates: The templates dictionary with keys 'netflow' and 'ipfix' (created if not existing).
     :return: The parsed packet, or an exception.
     """
-    if type(data) == str:
+    if type(data) is str:
         # hex dump as string
         data = bytes.fromhex(data)
-    elif type(data) == bytes:
+    elif type(data) is bytes:
         # check representation based on utf-8 decoding result
         try:
             # hex dump as bytes, but not hex
@@ -83,8 +83,8 @@ def parse_packet(data: Union[str, bytes], templates: Dict = None) -> Union[V1Exp
 
     if version in [9, 10] and templates is None:
         raise ValueError("{} packet detected, but no templates dict was passed! For correct parsing of packets with "
-                         "templates, create a 'templates' dict and pass it into the 'parse_packet' function.".format(
-            "NetFlow v9" if version == 9 else "IPFIX"))
+                         "templates, create a 'templates' dict and pass it into the 'parse_packet' function."
+                         .format("NetFlow v9" if version == 9 else "IPFIX"))
 
     if version == 1:
         return V1ExportPacket(data)

@@ -204,7 +204,7 @@ if __name__ == "__main__":
     if args.match_host:
         try:
             match_host = ipaddress.ip_address(args.match_host)
-        except ValueError as ex:
+        except ValueError:
             exit("IP address '{}' is neither IPv4 nor IPv6".format(args.match_host))
 
     # Using a file and using stdin differ in their further usage for gzip.open

@@ -514,9 +514,9 @@ class IPFIXFieldTypes:
         :return:
         """
         item = None
-        if type(key) == int:
+        if type(key) is int:
             item = cls.by_id(key)
-        elif type(key) == str:
+        elif type(key) is str:
             item = cls.by_name(key)
         if not item:
             return None
@@ -575,7 +575,7 @@ class IPFIXDataTypes:
         :return:
         """
         fields = ["signed8", "signed16", "signed32", "signed64"]
-        if type(dt) == DataType:
+        if type(dt) is DataType:
             return dt.type in fields
         return dt in fields
 
@@ -587,7 +587,7 @@ class IPFIXDataTypes:
         :return:
         """
         fields = ["float32", "float64"]
-        if type(dt) == DataType:
+        if type(dt) is DataType:
             return dt.type in fields
         return dt in fields
 
@@ -601,7 +601,7 @@ class IPFIXDataTypes:
         fields = ["octetArray", "string",
                   "macAddress", "ipv4Address", "ipv6Address",
                   "dateTimeMicroseconds", "dateTimeNanoseconds"]
-        if type(dt) == DataType:
+        if type(dt) is DataType:
             return dt.type in fields
         return dt in fields
 
