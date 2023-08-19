@@ -971,11 +971,11 @@ class IPFIXExportPacket:
         return self._contains_new_templates
 
     @property
-    def flows(self) -> list[IPFIXTemplateRecord | IPFIXOptionsTemplateRecord | IPFIXDataRecord]:
+    def flows(self):
         return self._flows
 
     @property
-    def templates(self) ->  dict[int, list]:
+    def templates(self):
         return self._templates
 
     def __repr__(self):
