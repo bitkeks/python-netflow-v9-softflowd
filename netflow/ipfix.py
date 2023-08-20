@@ -765,7 +765,7 @@ class IPFIXDataRecord:
         pack = struct.unpack(unpacker, data[0:offset])
 
         # Iterate through template again, but taking the unpacked values this time
-        for index, ((field_datatype, field_type_id), value) in enumerate(zip(discovered_fields, pack)):
+        for index, ((field_datatype, field_type_id), value, field) in enumerate(zip(discovered_fields, pack, template)):
             if type(value) is bytes:
                 # Check if value is raw bytes, so no conversion happened in struct.unpack
                 if field_datatype in ["string"]:
@@ -784,7 +784,8 @@ class IPFIXDataRecord:
                     value = int.from_bytes(value, "big")
             # If not bytes, struct.unpack already did necessary conversions (int, float...),
             # value can be used as-is.
-            self.fields.add((field_type_id, value))
+            self.fields.add((field_type_id, value, True if type(field) is TemplateFieldEnterprise and
+                                                           field.enterprise_number == 29305 else False))
 
         self._length = offset
         self.__dict__.update(self.data)
@@ -795,7 +796,7 @@ class IPFIXDataRecord:
     @property
     def data(self):
         return {
-            IPFIXFieldTypes.by_id(key)[1]: value for (key, value) in self.fields
+            IPFIXFieldTypes.by_id(key)[1] + ("_" if biflow else ""): value for (key, value, biflow) in self.fields
         }
 
     def __repr__(self):
