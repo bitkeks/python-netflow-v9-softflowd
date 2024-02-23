@@ -205,7 +205,7 @@ class V9DataFlowSet:
         offset = 4
 
         # As the field lengths are variable V9 has padding to next 32 Bit
-        padding_size = 4 - (self.length % 4)  # 4 Byte
+        padding_size = 4 - (self.length % 4) if self.length % 4 else 0 # 4 Byte
 
         # For performance reasons, we use struct.unpack to get individual values. Here
         # we prepare the format string for parsing it. The format string is based on the template fields and their
@@ -225,10 +225,16 @@ class V9DataFlowSet:
                 struct_format += '%ds' % flen
             struct_len += flen
 
-        while offset <= (self.length - padding_size):
+        while offset + struct_len <= (self.length - padding_size):
             # Here we actually unpack the values, the struct format string is used in every data record
             # iteration, until the final offset reaches the end of the whole data stream
-            unpacked_values = struct.unpack(struct_format, data[offset:offset + struct_len])
+            try:
+                unpacked_values = struct.unpack(struct_format, data[offset:offset + struct_len])
+            except:
+                print("struct.unpack is failed. (offset: {}, struct_len: {}, length: {}, padding_size: {})"
+                      .format(offset, struct_len, self.length, padding_size))
+                offset += struct_len
+                continue
 
             new_record = V9DataRecord()
             for field, value in zip(template.fields, unpacked_values):
